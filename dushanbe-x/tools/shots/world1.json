@@ -1,0 +1,6 @@
+[
+ {"out": "/tmp/claude-0/shots/w1_rudaki_city.png", "cam": "505,g9,2750,0,-6", "hour": 10.5},
+ {"out": "/tmp/claude-0/shots/w2_residential.png", "cam": "1200,g70,3400,-35,-22", "hour": 16},
+ {"out": "/tmp/claude-0/shots/w3_varzob_village.png", "cam": "560,g40,-1250,-10,-14", "hour": 9},
+ {"out": "/tmp/claude-0/shots/w4_hisor.png", "cam": "-3700,g60,2600,-60,-18", "hour": 17.5}
+]

@@ -1,0 +1,5 @@
+[
+ {"out": "/tmp/claude-0/shots/t1_city_overview.png", "cam": "500,g350,4300,180,-22", "hour": 10},
+ {"out": "/tmp/claude-0/shots/t2_varzob.png", "cam": "420,g120,-1200,0,-12", "hour": 9},
+ {"out": "/tmp/claude-0/shots/t3_mountains.png", "cam": "-1500,g500,-500,-30,-12", "hour": 16}
+]

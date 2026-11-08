@@ -1,0 +1,8 @@
+[
+ {"out": "/tmp/claude-0/lmshots/n1_library.png", "cam": "260,g8,2262,180,8", "hour": 12},
+ {"out": "/tmp/claude-0/lmshots/n2_ismaili.png", "cam": "-610,g8,1625,-5,4", "hour": 15},
+ {"out": "/tmp/claude-0/lmshots/n3_victory.png", "cam": "1500,g18,560,180,0", "hour": 20.5},
+ {"out": "/tmp/claude-0/lmshots/n4_madrasa.png", "cam": "-4120,g5,1648,0,8", "hour": 9},
+ {"out": "/tmp/claude-0/lmshots/n5_viewpoint.png", "cam": "1890,g12,-3095,-75,-4", "hour": 17},
+ {"out": "/tmp/claude-0/lmshots/n6_gas.png", "cam": "-2290,g6,1688,170,-3", "hour": 21}
+]

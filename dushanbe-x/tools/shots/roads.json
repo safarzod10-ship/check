@@ -1,0 +1,7 @@
+[
+ {"out": "/tmp/claude-0/shots/r1_rudaki.png", "cam": "520,g14,2300,0,-12", "hour": 11},
+ {"out": "/tmp/claude-0/shots/r2_bridge.png", "cam": "-250,g18,1740,-60,-14", "hour": 15},
+ {"out": "/tmp/claude-0/shots/r3_serpentine.png", "cam": "900,g160,-2500,20,-28", "hour": 10},
+ {"out": "/tmp/claude-0/shots/r4_tunnel.png", "cam": "470,g12,-2880,-170,-6", "hour": 10},
+ {"out": "/tmp/claude-0/shots/r5_rain.png", "cam": "505,g4,2600,0,-6", "hour": 18.5, "weather": 3}
+]

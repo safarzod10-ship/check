@@ -1,0 +1,8 @@
+[
+ {"out": "/tmp/claude-0/lmshots/m1_hisor.png", "cam": "-4085,g8,1545,5,6", "hour": 16},
+ {"out": "/tmp/claude-0/lmshots/m2_opera.png", "cam": "560,g6,2605,-95,6", "hour": 11},
+ {"out": "/tmp/claude-0/lmshots/m3_vahdat.png", "cam": "530,g12,800,-90,6", "hour": 10},
+ {"out": "/tmp/claude-0/lmshots/m4_tnu.png", "cam": "540,g10,3075,-95,8", "hour": 14},
+ {"out": "/tmp/claude-0/lmshots/m5_museum.png", "cam": "60,g8,1645,-5,5", "hour": 13},
+ {"out": "/tmp/claude-0/lmshots/m6_station.png", "cam": "500,g8,3925,180,6", "hour": 18}
+]

@@ -1,0 +1,8 @@
+[
+ {"out": "/tmp/claude-0/lmshots/l1_somoni.png", "cam": "490,g4,1815,95,10", "hour": 15},
+ {"out": "/tmp/claude-0/lmshots/l2_flag.png", "cam": "250,g40,1700,124,18", "hour": 11},
+ {"out": "/tmp/claude-0/lmshots/l3_palace.png", "cam": "215,g18,2160,100,4", "hour": 10},
+ {"out": "/tmp/claude-0/lmshots/l4_navruz.png", "cam": "1300,g30,1010,180,0", "hour": 17},
+ {"out": "/tmp/claude-0/lmshots/l5_hisor.png", "cam": "-4085,g8,1545,5,6", "hour": 16},
+ {"out": "/tmp/claude-0/lmshots/l6_mehrgon.png", "cam": "1420,g14,3185,5,4", "hour": 12}
+]
