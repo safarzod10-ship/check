@@ -9,11 +9,15 @@ extends RefCounted
 ## UV2 carries per-object data for shaders (e.g. building style / seed).
 
 var surfaces: Dictionary = {}
+## Optional slot remapping (e.g. {"stone": "plain"}) to merge materials and cut draw calls.
+var slot_remap: Dictionary = {}
 var uv_scale := 1.0
 var uv2 := Vector2.ZERO
 
 
 func _s(slot: String) -> Dictionary:
+	if not slot_remap.is_empty():
+		slot = slot_remap.get(slot, slot)
 	if not surfaces.has(slot):
 		surfaces[slot] = {
 			"v": PackedVector3Array(), "n": PackedVector3Array(), "c": PackedColorArray(),

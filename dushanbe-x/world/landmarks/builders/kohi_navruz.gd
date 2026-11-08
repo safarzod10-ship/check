@@ -64,4 +64,5 @@ static func build(k: MeshKit, lm: Dictionary) -> void:
 	for i in 32:
 		var a := TAU * i / 32.0
 		LmKit.box(k, "stone", Vector3(cos(a) * 41.0, 0.3, pond_z + sin(a) * 41.0), Vector3(8.4, 0.8, 1.4), Color(0.85, 0.82, 0.76), -a + PI * 0.5)
+	LmKit.light(lm, Vector3(0, 0.5, pz + 30), Color(0.8, 0.9, 1.0), 110.0, 6.0, "spot", Vector3(0, 30, zc))
 	LmKit.label(lm, Vector3(0, 2.0 + h + 8.6, fz + 4.3), "КОХИ НАВРӮЗ", 110, Color(1, 0.85, 0.4))

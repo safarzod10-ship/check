@@ -40,7 +40,7 @@ func _ready() -> void:
 
 func _apply_settings() -> void:
 	var bias: float = GameSettings.get_v("terrain_lod_bias", 1.0)
-	lod_dist = [500.0 * bias, 1200.0 * bias, 2500.0 * bias, 4500.0 * bias]
+	lod_dist = [350.0 * bias, 1000.0 * bias, 2200.0 * bias, 4200.0 * bias]
 	view_distance = GameSettings.get_v("view_distance", 7000.0)
 
 
@@ -165,7 +165,7 @@ func _apply_results() -> void:
 		c["mesh"].mesh = mesh
 		c["mesh"].visible = true
 		# far LODs don't need to cast shadows
-		c["mesh"].cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if lod <= 1 else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		c["mesh"].cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if lod == 0 else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		c["lod"] = lod
 
 

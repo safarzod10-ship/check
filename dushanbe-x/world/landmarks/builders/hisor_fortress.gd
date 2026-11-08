@@ -4,7 +4,7 @@ extends RefCounted
 
 static func build(k: MeshKit, lm: Dictionary) -> void:
 	var d: MeshKit = lm["_detail"]
-	var brick := Color(0.80, 0.52, 0.34)
+	var brick := Color(0.86, 0.66, 0.48)
 	var mud := LmKit.MUD
 	var hz: float = lm["hz"]
 	var hx: float = lm["hx"]

@@ -5,7 +5,7 @@ extends Node3D
 ##                      tunnel tube + portals, guard rails, zebra crossings, collision near the player
 ##  far: simplified carriageway ribbons so roads stay visible from the mountains.
 
-const NEAR_DIST := 1300.0
+const NEAR_DIST := 800.0
 const COLL_DIST := 300.0
 const CURB := 0.15
 const F_BRIDGE := 1
@@ -23,6 +23,7 @@ var _inflight := 0
 var _timer := 0.0
 var materials: Dictionary = {}
 var view_distance := 7000.0
+var near_dist := NEAR_DIST
 
 
 func _ready() -> void:
@@ -42,8 +43,13 @@ func _ready() -> void:
 		if not WorldData.sector_index[key]["road_runs"].is_empty():
 			sectors[key] = {"near": null, "far": null, "body": null, "near_pending": false, "far_pending": false,
 				"faces": PackedVector3Array()}
-	GameSettings.changed.connect(func(): view_distance = GameSettings.get_v("view_distance", 7000.0))
+	GameSettings.changed.connect(_apply_settings)
+	_apply_settings()
+
+
+func _apply_settings() -> void:
 	view_distance = GameSettings.get_v("view_distance", 7000.0)
+	near_dist = clampf(float(GameSettings.get_v("building_distance", 1100.0)) * 0.6, 350.0, NEAR_DIST)
 
 
 func _make_materials() -> void:
@@ -83,11 +89,11 @@ func _process(delta: float) -> void:
 	for key in sectors:
 		var st: Dictionary = sectors[key]
 		var d := _rect_dist(key, cam)
-		var want_near := d < NEAR_DIST
+		var want_near := d < near_dist
 		var want_far := d < view_distance
 		if want_near and st["near"] == null and not st["near_pending"]:
 			todo.append([d, key, true])
-		elif not want_near and st["near"] != null and d > NEAR_DIST + 150.0:
+		elif not want_near and st["near"] != null and d > near_dist + 150.0:
 			st["near"].queue_free()
 			st["near"] = null
 			st["faces"] = PackedVector3Array()
@@ -151,7 +157,7 @@ func _apply_results() -> void:
 		var mi := MeshInstance3D.new()
 		mi.mesh = kit.build(materials)
 		mi.position = WorldData.sector_origin(key)
-		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if near else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		mi.name = ("RoadNear_%d_%d" if near else "RoadFar_%d_%d") % [key.x, key.y]
 		add_child(mi)
 		if near:
@@ -169,6 +175,7 @@ func _apply_results() -> void:
 # ---------------------------------------------------------------------------
 func build_sector(key: Vector2i, near: bool) -> Dictionary:
 	var kit := MeshKit.new()
+	kit.slot_remap = {"gravel": "concrete", "lamp_always": "lamp_always"}
 	var org := WorldData.sector_origin(key)
 	var sd: Dictionary = WorldData.sector_index.get(key, {})
 	var types: Dictionary = WorldData.world["road_types"]

@@ -176,6 +176,7 @@ func _update_lights(delta: float) -> void:
 # ---------------------------------------------------------------------------
 func build_sector(key: Vector2i) -> Dictionary:
 	var kit := MeshKit.new()
+	kit.slot_remap = {"wood": "plain", "concrete": "plain", "glass": "metal"}
 	var labels: Array = []
 	var colliders: Array = []
 	var lamps := PackedVector3Array()

@@ -45,6 +45,8 @@ func add_crime(points: int) -> void:
 
 
 func set_wanted(v: int) -> void:
+	if v > wanted:
+		_wanted_decay = 45.0
 	if v != wanted:
 		wanted = v
 		wanted_changed.emit(wanted)

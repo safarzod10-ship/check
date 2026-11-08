@@ -1,0 +1,13 @@
+[
+ {"hour": 11, "weather": 0},
+ {"wait": 25},
+ {"shot": "/tmp/claude-0/shots/g1_spawn_foot.png"},
+ {"enter_car": true},
+ {"wait": 4},
+ {"press": "move_forward", "time": 6},
+ {"wait": 6},
+ {"shot": "/tmp/claude-0/shots/g2_driving.png"},
+ {"hour": 21.5},
+ {"wait": 8},
+ {"shot": "/tmp/claude-0/shots/g3_night_drive.png"}
+]

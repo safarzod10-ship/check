@@ -1,0 +1,12 @@
+[
+ {"out": "/tmp/claude-0/final/01_center_aerial.png", "cam": "900,g170,2350,43,-17", "hour": 10.5},
+ {"out": "/tmp/claude-0/final/02_rudaki_sunset.png", "cam": "506,g2.2,2950,0,-2", "hour": 18.2},
+ {"out": "/tmp/claude-0/final/03_varzob_gorge.png", "cam": "380,g70,-1000,0,-10", "hour": 10},
+ {"out": "/tmp/claude-0/final/04_serpentine.png", "cam": "700,g220,-2350,-38,-24", "hour": 11},
+ {"out": "/tmp/claude-0/final/05_kuli_sabz_lake.png", "cam": "-2150,g45,-2550,59,-8", "hour": 15},
+ {"out": "/tmp/claude-0/final/06_hisor_fortress.png", "cam": "-4100,g22,1720,0,-4", "hour": 17.8},
+ {"out": "/tmp/claude-0/final/07_night_city.png", "cam": "650,g60,2050,47,-12", "hour": 21.5},
+ {"out": "/tmp/claude-0/final/08_rain_rudaki.png", "cam": "520,g3,2250,0,-4", "hour": 16, "weather": 3},
+ {"out": "/tmp/claude-0/final/09_snow_peaks.png", "cam": "1500,g400,-1500,10,-5", "hour": 12},
+ {"out": "/tmp/claude-0/final/10_fog_morning.png", "cam": "300,g25,-600,0,-4", "hour": 7.2, "weather": 2}
+]

@@ -20,7 +20,7 @@ static func ensure() -> void:
 		far_meshes[s] = kf.build()
 
 
-static func _crown(kit: MeshKit, c: Vector3, r: Vector3, col: Color, rings := 4, segs := 7) -> void:
+static func _crown(kit: MeshKit, c: Vector3, r: Vector3, col: Color, rings := 4, segs := 6) -> void:
 	var t := Transform3D(Basis().scaled(r), c)
 	kit.sphere("foliage", t, 1.0, rings, segs, col)
 
@@ -40,8 +40,8 @@ static func _build(s: String, kit: MeshKit, near: bool) -> void:
 					kit.cylinder("bark", tb, 0.3, 0.15, 4.0, 5, Color(0.7, 0.66, 0.56), false)
 				var g := Color(0.27, 0.41, 0.17)
 				_crown(kit, Vector3(0, 10.0, 0), Vector3(5.5, 4.2, 5.5), g)
-				for k in 6:
-					var a2 := TAU * k / 6.0
+				for k in 4:
+					var a2 := TAU * k / 4.0 + 0.3
 					_crown(kit, Vector3(cos(a2) * 3.6, 8.6 + rng.randf() * 2.0, sin(a2) * 3.6), Vector3(3.2, 2.8, 3.2), g.lightened(rng.randf() * 0.1))
 				_crown(kit, Vector3(0.5, 13.2, 0.3), Vector3(3.4, 2.6, 3.4), g.lightened(0.08))
 			else:
@@ -50,8 +50,8 @@ static func _build(s: String, kit: MeshKit, near: bool) -> void:
 			kit.cylinder("bark", Transform3D(), 0.3, 0.12, 16.0, segs, bark, false)
 			var g2 := Color(0.26, 0.4, 0.16)
 			if near:
-				for k in 5:
-					_crown(kit, Vector3(rng.randf_range(-0.4, 0.4), 6.0 + k * 3.2, rng.randf_range(-0.4, 0.4)), Vector3(2.0 - k * 0.22, 3.0, 2.0 - k * 0.22), g2)
+				for k in 4:
+					_crown(kit, Vector3(rng.randf_range(-0.4, 0.4), 6.0 + k * 4.0, rng.randf_range(-0.4, 0.4)), Vector3(2.0 - k * 0.22, 3.0, 2.0 - k * 0.22), g2)
 			else:
 				_crown(kit, Vector3(0, 12.0, 0), Vector3(1.9, 8.5, 1.9), g2, 3, 5)
 		"archa":    # juniper (archa): irregular dark conical crown, twisted trunk

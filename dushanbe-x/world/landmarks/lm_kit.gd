@@ -10,7 +10,7 @@ const CREAM := Color(0.96, 0.88, 0.74)
 const PEACH := Color(0.95, 0.78, 0.62)
 const SAND := Color(0.86, 0.78, 0.62)
 const BRICK := Color(0.66, 0.46, 0.32)
-const MUD := Color(0.72, 0.6, 0.44)
+const MUD := Color(0.84, 0.72, 0.55)
 const TURQ := Color(0.12, 0.62, 0.68)
 const BLUE_TILE := Color(0.16, 0.32, 0.66)
 const BRONZE := Color(0.45, 0.32, 0.18)
@@ -335,3 +335,10 @@ static func label(lm: Dictionary, pos: Vector3, text: String, size := 64, col :=
 	if not lm.has("_labels"):
 		lm["_labels"] = []
 	lm["_labels"].append([pos, text, size, col, yaw])
+
+
+## Night light spec: kind "omni" or "spot" (spot points from pos towards target).
+static func light(lm: Dictionary, pos: Vector3, col: Color, rng: float, energy := 2.0, kind := "omni", target := Vector3.ZERO) -> void:
+	if not lm.has("_lights"):
+		lm["_lights"] = []
+	lm["_lights"].append([pos, col, rng, energy, kind, target])

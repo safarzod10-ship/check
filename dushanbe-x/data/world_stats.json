@@ -1,24 +1,24 @@
 {
- "height_min": -4.577627658843994,
- "height_max": 2185.213623046875,
- "roads": 143,
+ "height_min": -4.577646255493164,
+ "height_max": 2357.661376953125,
+ "roads": 142,
  "road_km": {
   "avenue": 6.0,
   "boulevard": 25.8,
   "highway": 11.8,
   "mountain": 5.4,
   "street": 113.2,
-  "rural": 24.3,
-  "dirt": 8.9
+  "rural": 24.2,
+  "dirt": 8.7
  },
- "bridges": 25,
+ "bridges": 29,
  "tunnels": 1,
- "intersections": 377,
- "buildings": 5829,
+ "intersections": 375,
+ "buildings": 5842,
  "villages": 10,
  "lakes": 4,
  "rivers": 7,
  "waterfalls": 4,
  "pois": 30,
- "hole_cells": 56
+ "hole_cells": 57
 }

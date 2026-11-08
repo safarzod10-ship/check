@@ -49,6 +49,8 @@ func setup(type: String, color: Color, road: int, sample: float, direction: int,
 	add_child(mi)
 	_brake_mi = MeshInstance3D.new()
 	_brake_mi.mesh = data["brake"]
+	_brake_mi.visibility_range_end = 150.0
+	_brake_mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(_brake_mi)
 	if data["siren_red"]:
 		var a := MeshInstance3D.new()
@@ -70,6 +72,8 @@ func setup(type: String, color: Color, road: int, sample: float, direction: int,
 		var w := MeshInstance3D.new()
 		w.mesh = data["wheel"]
 		w.position = wp
+		w.visibility_range_end = 110.0   # perf: wheels are hidden by the body silhouette far away
+		w.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		add_child(w)
 		_wheels.append(w)
 	for sh in data["shapes"]:

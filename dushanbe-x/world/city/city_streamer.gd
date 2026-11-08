@@ -4,6 +4,7 @@ extends Node3D
 ##   detailed meshes near the camera, facade-shaded boxes far away, box collisions near the player.
 
 const COLL_DIST := 260.0
+const FULL_DIST := 160.0     # balconies, AC units, dishes only this close
 
 var is_idle := false
 var sectors: Dictionary = {}
@@ -24,8 +25,8 @@ func _ready() -> void:
 
 
 func _apply_settings() -> void:
-	detail_dist = float(GameSettings.get_v("building_distance", 1100.0)) * 0.5
-	far_dist = maxf(1500.0, float(GameSettings.get_v("view_distance", 7000.0)) * 0.75)
+	detail_dist = float(GameSettings.get_v("building_distance", 1100.0)) * 0.32
+	far_dist = clampf(float(GameSettings.get_v("view_distance", 7000.0)) * 0.6, 1500.0, 3500.0)
 
 
 func _rect_dist(key: Vector2i, p: Vector3) -> float:
@@ -49,7 +50,8 @@ func _process(delta: float) -> void:
 		var st: Dictionary = sectors[key]
 		var d := _rect_dist(key, cam)
 		var want_near := d < detail_dist
-		if want_near and st["near"] == null and not st["near_pending"]:
+		var want_full := d < FULL_DIST
+		if want_near and not st["near_pending"] and (st["near"] == null or (want_full and not st.get("full", false))):
 			todo.append([d, key, true])
 		elif not want_near and st["near"] != null and d > detail_dist + 120.0:
 			st["near"].queue_free()
@@ -78,21 +80,25 @@ func _process(delta: float) -> void:
 			break
 		sectors[t[1]]["near_pending" if t[2] else "far_pending"] = true
 		_inflight += 1
-		WorkerThreadPool.add_task(_task.bind(t[1], t[2]))
+		WorkerThreadPool.add_task(_task.bind(t[1], t[2], t[0] < FULL_DIST))
 
 
-func _task(key: Vector2i, near: bool) -> void:
+func _task(key: Vector2i, near: bool, full := false) -> void:
 	var kit := MeshKit.new()
+	kit.slot_remap = {"stone": "plain", "marble": "plain", "concrete": "plain", "dirt": "plain", "plain2": "plain",
+		"foliage": "plain", "lamp_always": "plain", "glossy": "plain", "metal": "plain"}
+	if not near:
+		kit.slot_remap = {"plain": "facade"}   # far LOD: one surface per sector
 	var labels: Array = []
 	var org := WorldData.sector_origin(key)
 	for bi in WorldData.sector_index[key]["buildings"]:
 		var b: Array = WorldData.buildings[bi]
 		if near:
-			BuildingFactory.build_near(kit, b, org, labels)
+			BuildingFactory.build_near(kit, b, org, labels, full)
 		else:
 			BuildingFactory.build_far(kit, b, org)
 	_mutex.lock()
-	_results.append({"key": key, "near": near, "kit": kit, "labels": labels})
+	_results.append({"key": key, "near": near, "kit": kit, "labels": labels, "full": full})
 	_mutex.unlock()
 
 
@@ -119,15 +125,38 @@ func _apply_results() -> void:
 		if near:
 			if st["near"]:
 				st["near"].queue_free()
+			if st["labels"]:
+				st["labels"].queue_free()
+				st["labels"] = null
 			st["near"] = mi
+			st["full"] = res["full"]
 			if st["far"]:
 				st["far"].visible = false
 			st["labels"] = _make_labels(res["labels"], key)
+			_add_occluders(mi, key)
 		else:
 			if st["far"]:
 				st["far"].queue_free()
 			st["far"] = mi
 			mi.visible = st["near"] == null
+
+
+## Occlusion culling: tall buildings hide what is behind them (children of the near mesh, freed with it).
+func _add_occluders(parent: Node3D, key: Vector2i) -> void:
+	var org := WorldData.sector_origin(key)
+	for bi in WorldData.sector_index[key]["buildings"]:
+		var b: Array = WorldData.buildings[bi]
+		var st: int = b[6]
+		if int(b[5]) < 4 or st == 5 or st == 7:
+			continue
+		var h := BuildingFactory.height_of(b)
+		var occ := OccluderInstance3D.new()
+		var box := BoxOccluder3D.new()
+		var shrink := 0.7 if st == 2 else 0.92
+		box.size = Vector3(float(b[3]) * shrink, h, float(b[4]) * shrink)
+		occ.occluder = box
+		occ.transform = BuildingFactory.transform_of(b, org) * Transform3D(Basis(), Vector3(0, h * 0.5, 0))
+		parent.add_child(occ)
 
 
 func _make_labels(labels: Array, key: Vector2i) -> Node3D:

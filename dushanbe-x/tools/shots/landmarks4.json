@@ -1,0 +1,8 @@
+[
+ {"out": "/tmp/claude-0/lmshots/o1_somoni_day.png", "cam": "455,g3,1812,95,14", "hour": 15},
+ {"out": "/tmp/claude-0/lmshots/o2_somoni_night.png", "cam": "460,g4,1812,95,12", "hour": 22},
+ {"out": "/tmp/claude-0/lmshots/o3_navruz_close.png", "cam": "1300,g10,1110,180,8", "hour": 17.5},
+ {"out": "/tmp/claude-0/lmshots/o4_chaikhana.png", "cam": "490,g4,-1752,85,-2", "hour": 13},
+ {"out": "/tmp/claude-0/lmshots/o5_hisor.png", "cam": "-4085,g8,1545,5,6", "hour": 16},
+ {"out": "/tmp/claude-0/lmshots/o6_opera.png", "cam": "560,g6,2605,-95,6", "hour": 16}
+]

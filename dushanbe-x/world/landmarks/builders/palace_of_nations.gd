@@ -60,4 +60,6 @@ static func build(k: MeshKit, lm: Dictionary) -> void:
 	var fence_z: float = minf(lm["hz"] - 3.0, gz + 20.0)
 	LmKit.railing(d, Vector3(-75, 0, fence_z), Vector3(-10, 0, fence_z), 2.2, Color(0.85, 0.7, 0.3))
 	LmKit.railing(d, Vector3(10, 0, fence_z), Vector3(75, 0, fence_z), 2.2, Color(0.85, 0.7, 0.3))
+	LmKit.light(lm, Vector3(-30, 0.5, gz), Color(1.0, 0.9, 0.7), 90.0, 5.0, "spot", Vector3(0, 20, zc))
+	LmKit.light(lm, Vector3(30, 0.5, gz), Color(1.0, 0.9, 0.7), 90.0, 5.0, "spot", Vector3(0, 30, zc))
 	LmKit.label(lm, Vector3(0, h + 1.0, fz + 8.3), "КОХИ МИЛЛАТ", 80, Color(1, 0.85, 0.4))

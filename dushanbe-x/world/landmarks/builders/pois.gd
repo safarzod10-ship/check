@@ -51,6 +51,7 @@ static func _gas(k: MeshKit, lm: Dictionary) -> void:
 	# price pylon
 	LmKit.block(k, "metal", Vector3(20, 0.1, 15), Vector3(0.6, 7.0, 0.6), LmKit.METAL)
 	LmKit.block(k, "glossy", Vector3(20, 5.0, 15), Vector3(3.0, 4.0, 0.5), Color(0.1, 0.45, 0.25))
+	LmKit.light(lm, Vector3(0, 5.2, cz), Color(1.0, 0.98, 0.92), 26.0, 2.5)
 	LmKit.label(lm, Vector3(20, 6.3, 15.3), "АЗС", 110, Color(1, 1, 1))
 	LmKit.label(lm, Vector3(20, 5.4, 15.3), "АИ-92  10.2\nАИ-95  11.5\nДТ     10.8", 36, Color(1, 0.9, 0.3))
 	LmKit.label(lm, Vector3(0, 6.2, cz + 7.12), "ЗАПРАВКА", 90, Color(1, 1, 1))
@@ -110,6 +111,7 @@ static func _chaikhana(k: MeshKit, lm: Dictionary) -> void:
 	# outdoor tapchans under a shade tree
 	LmKit.tree(k, Vector3(12, 0.1, 9), 9.0, 4.0, 77, 0)
 	LmKit.block(d, "wood", Vector3(12, 0.1, 9), Vector3(4, 0.6, 3), LmKit.WOOD)
+	LmKit.light(lm, Vector3(0, 3.6, az), Color(1.0, 0.8, 0.55), 18.0, 2.0)
 	LmKit.label(lm, Vector3(0, 4.7, az + 6.6), "ЧОЙХОНА", 90, Color(1, 0.9, 0.5))
 
 

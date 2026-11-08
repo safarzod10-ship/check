@@ -18,6 +18,7 @@ const SYSTEMS := [
 	["Traffic", "res://vehicles/traffic_manager.gd"],
 	["Pedestrians", "res://characters/npc/pedestrian_manager.gd"],
 	["Audio", "res://audio/ambience.gd"],
+	["Events", "res://world/events/events.gd"],
 ]
 
 var systems: Dictionary = {}
@@ -32,7 +33,14 @@ var _stats_out := ""
 func _ready() -> void:
 	var args := _parse_args()
 	GameState.screenshot_mode = args.has("shot") or args.has("shots")
+	if args.has("preset") and GameSettings.PRESETS.has(args["preset"]):
+		# test runs: use a preset without overwriting the player's saved settings
+		GameSettings.values = GameSettings.PRESETS[args["preset"]].duplicate()
+		GameSettings.apply()
+	var only: PackedStringArray = str(args.get("only", "")).split(",", false)
 	for s in SYSTEMS:
+		if not only.is_empty() and not only.has(s[0]):
+			continue
 		if ResourceLoader.exists(s[1]):
 			var scr: Script = load(s[1])
 			if scr == null or not scr.can_instantiate():
@@ -51,6 +59,106 @@ func _ready() -> void:
 		_spawn_player()
 		if ResourceLoader.exists("res://ui/hud.tscn"):
 			add_child(load("res://ui/hud.tscn").instantiate())
+		if args.has("preset") and GameSettings.PRESETS.has(args["preset"]):
+			pass
+		if args.has("gameshots"):
+			_run_gameshots(args)
+
+
+## Rough per-system render budget: visible geometry instances, surfaces and triangles (no shadow passes).
+func _profile() -> void:
+	var cam := get_viewport().get_camera_3d()
+	for k in systems.keys() + ["Player"]:
+		var root: Node = systems.get(k, get_node_or_null(k))
+		if root == null:
+			continue
+		var stats := [0, 0, 0]
+		_profile_node(root, cam, stats)
+		if stats[0] > 0:
+			print("    %-12s inst=%4d surfaces=%4d tris=%8d" % [k, stats[0], stats[1], stats[2]])
+
+
+func _profile_node(n: Node, cam: Camera3D, stats: Array) -> void:
+	if n is Node3D and not (n as Node3D).is_visible_in_tree():
+		return
+	if n is GeometryInstance3D:
+		var gi := n as GeometryInstance3D
+		var d := cam.global_position.distance_to(gi.global_transform * gi.get_aabb().get_center()) if cam else 0.0
+		if gi.visibility_range_end > 0.0 and d > gi.visibility_range_end:
+			pass
+		else:
+			var mesh: Mesh = null
+			var count := 1
+			if n is MeshInstance3D:
+				mesh = (n as MeshInstance3D).mesh
+			elif n is MultiMeshInstance3D and (n as MultiMeshInstance3D).multimesh:
+				mesh = (n as MultiMeshInstance3D).multimesh.mesh
+				count = (n as MultiMeshInstance3D).multimesh.instance_count
+			if mesh:
+				stats[0] += 1
+				stats[1] += mesh.get_surface_count()
+				var tris := 0
+				for si in mesh.get_surface_count():
+					var arr := mesh.surface_get_arrays(si)
+					var idx = arr[Mesh.ARRAY_INDEX]
+					tris += (idx.size() / 3) if idx != null else (arr[Mesh.ARRAY_VERTEX].size() / 3)
+				stats[2] += tris * count
+	for c in n.get_children():
+		_profile_node(c, cam, stats)
+
+
+## Gameplay capture for testing: real player, HUD, traffic. Steps (JSON list):
+## {"wait": s} | {"hour": h} | {"weather": n} | {"teleport": "x,z,yaw"} | {"press": action, "time": s}
+## | {"enter_car": true} | {"look": "dx,dy"} | {"shot": path}
+func _run_gameshots(args: Dictionary) -> void:
+	var steps: Array = JSON.parse_string(FileAccess.get_file_as_string(args["gameshots"]))
+	TimeWeather.auto_weather = false
+	for st in steps:
+		if st.has("hour"):
+			TimeWeather.hour = float(st["hour"])
+		if st.has("weather"):
+			TimeWeather.set_weather(int(st["weather"]))
+		if st.has("teleport"):
+			var c: PackedStringArray = str(st["teleport"]).split(",")
+			var x := float(c[0])
+			var z := float(c[1])
+			var target: Node3D = GameState.current_vehicle if GameState.current_vehicle else GameState.player
+			target.global_position = Vector3(x, WorldData.height_at(x, z) + 1.5, z)
+			target.rotation = Vector3(0, deg_to_rad(float(c[2])) if c.size() > 2 else 0.0, 0)
+			if target is RigidBody3D:
+				target.linear_velocity = Vector3.ZERO
+			if target is CharacterBody3D:
+				target.velocity = Vector3.ZERO
+		if st.has("look"):
+			var l: PackedStringArray = str(st["look"]).split(",")
+			GameState.look_delta += Vector2(float(l[0]), float(l[1]))
+		if st.has("enter_car"):
+			var best: Node3D = null
+			var bd := 1e9
+			for v in get_tree().get_nodes_in_group("vehicles"):
+				var d: float = v.global_position.distance_to(GameState.player.global_position)
+				if d < bd:
+					bd = d
+					best = v
+			if best and GameState.player.has_method("enter_vehicle"):
+				GameState.player.global_position = best.global_position + Vector3(2, 0.5, 0)
+				GameState.player.enter_vehicle(best)
+		if st.has("press"):
+			Input.action_press(st["press"], 1.0)
+			await get_tree().create_timer(float(st.get("time", 1.0))).timeout
+			Input.action_release(st["press"])
+		if st.has("wait"):
+			var t_end := Time.get_ticks_msec() + int(float(st["wait"]) * 1000.0)
+			while Time.get_ticks_msec() < t_end:
+				await get_tree().process_frame
+		if st.has("shot"):
+			await RenderingServer.frame_post_draw
+			get_viewport().get_texture().get_image().save_png(str(st["shot"]))
+			_profile()
+			print("[Main] gameshot ", st["shot"], " fps=", Engine.get_frames_per_second(),
+				" draw_calls=", RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME),
+				" prims=", RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME))
+	get_tree().quit()
 
 
 func _parse_args() -> Dictionary:

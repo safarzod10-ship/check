@@ -32,6 +32,10 @@ var _mutex := Mutex.new()
 var _inflight := 0
 var _timer := 0.0
 var max_inflight := 2
+const LIGHT_RANGE := 350.0
+const MAX_LIGHTS := 8
+var _lights: Array = []
+var _light_timer := 0.0
 
 
 func _ready() -> void:
@@ -85,6 +89,10 @@ func _make_materials() -> void:
 
 func _process(delta: float) -> void:
 	_apply_results()
+	_light_timer -= delta
+	if _light_timer <= 0.0:
+		_light_timer = 1.0
+		_update_lights()
 	_timer -= delta
 	if _timer > 0.0:
 		return
@@ -138,8 +146,29 @@ func _task(idx: int) -> void:
 	_linearize(det)
 	var faces := k.collision_faces(COLLIDE_SLOTS)
 	_mutex.lock()
-	_results.append({"idx": idx, "kit": k, "detail": det, "faces": faces, "labels": lm.get("_labels", [])})
+	_results.append({"idx": idx, "kit": k, "detail": det, "faces": faces, "labels": lm.get("_labels", []),
+		"lights": lm.get("_lights", [])})
 	_mutex.unlock()
+
+
+## Night lights: only the closest few within LIGHT_RANGE are enabled, and only at night.
+func _update_lights() -> void:
+	var night: bool = TimeWeather.night_factor > 0.3
+	var cam := GameState.view_position()
+	var alive: Array = []
+	for l in _lights:
+		if is_instance_valid(l):
+			alive.append(l)
+	_lights = alive
+	if not night:
+		for l in _lights:
+			l.visible = false
+		return
+	_lights.sort_custom(func(a, b): return a.global_position.distance_squared_to(cam) < b.global_position.distance_squared_to(cam))
+	var budget := int(GameSettings.get_v("street_lights", 8)) / 2 + 2
+	for i in _lights.size():
+		var l: Light3D = _lights[i]
+		l.visible = i < mini(budget, MAX_LIGHTS) and l.global_position.distance_to(cam) < LIGHT_RANGE
 
 
 ## Textured world-space shaders use COLOR as linear; builders author colours in sRGB.
@@ -152,7 +181,7 @@ static func _linearize(k: MeshKit) -> void:
 			continue
 		var c: PackedColorArray = k.surfaces[slot]["c"]
 		for i in c.size():
-			c[i] = c[i].srgb_to_linear()
+			c[i] = c[i].lerp(c[i].srgb_to_linear(), 0.5)
 		k.surfaces[slot]["c"] = c
 
 
@@ -209,5 +238,29 @@ func _apply_results() -> void:
 			lab.visibility_range_end = LABEL_RANGE
 			lab.double_sided = false
 			node.add_child(lab)
+		for l in r["lights"]:
+			var light: Light3D
+			if l[4] == "spot":
+				var sp := SpotLight3D.new()
+				sp.spot_range = l[2]
+				sp.spot_angle = 35.0
+				light = sp
+			else:
+				var om := OmniLight3D.new()
+				om.omni_range = l[2]
+				light = om
+			light.light_color = l[1]
+			light.light_energy = l[3]
+			light.shadow_enabled = false
+			light.visible = false
+			var lpos: Vector3 = l[0]
+			if l[4] == "spot":
+				var dir: Vector3 = (l[5] - lpos).normalized()
+				var up := Vector3.UP if absf(dir.y) < 0.99 else Vector3.FORWARD
+				light.transform = Transform3D(Basis.looking_at(dir, up), lpos)   # local to the landmark node
+			else:
+				light.position = lpos
+			node.add_child(light)
+			_lights.append(light)
 		it["node"] = node
 		it["state"] = 2

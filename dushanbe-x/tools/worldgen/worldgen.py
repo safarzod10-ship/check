@@ -64,6 +64,15 @@ def sample(arr, x, z, order=1):
     return ndimage.map_coordinates(arr, [np.atleast_1d(gj), np.atleast_1d(gi)], order=order, mode="nearest")
 
 
+def max_step(A, label):
+    g = np.maximum(np.abs(np.diff(A, axis=1))[:-1, :], np.abs(np.diff(A, axis=0))[:, :-1])
+    log(f"  [check] {label}: max step {g.max():.1f} m, cells>30m: {int((g > 30).sum())}")
+    ys, xs = np.where(g > 30)
+    if len(ys):
+        sel = np.linspace(0, len(ys) - 1, min(6, len(ys))).astype(int)
+        log("     at " + ", ".join(f"({ORIGIN + xs[k] * CELL:.0f},{ORIGIN + ys[k] * CELL:.0f})" for k in sel))
+
+
 def smoothstep(e0, e1, v):
     t = np.clip((v - e0) / (e1 - e0), 0.0, 1.0)
     return t * t * (3 - 2 * t)
@@ -174,11 +183,11 @@ floor_base = plain_h + north_ramp
 dist_plain = ndimage.distance_transform_edt(V_plain < 0.5) * CELL
 dist_plain += fbm(GX, GZ, 1800, 3, SEED + 5) * 350 + fbm(GX, GZ, 450, 2, SEED + 6) * 90
 dist_plain = np.maximum(dist_plain, 0)
-wx = fbm(GX, GZ, 2600, 3, SEED + 11) * 800
-wz = fbm(GX, GZ, 2600, 3, SEED + 12) * 800
+wx = fbm(GX, GZ, 2600, 3, SEED + 11) * 350
+wz = fbm(GX, GZ, 2600, 3, SEED + 12) * 350
 ridge = fbm(GX + wx, GZ + wz, 3000, 7, SEED + 20, gain=0.5, ridged=True)
 ridge = (ridge - ridge.min()) / (ridge.max() - ridge.min())
-detail = fbm(GX + wz * 0.3, GZ + wx * 0.3, 380, 4, SEED + 30, ridged=True)
+detail = fbm(GX + wz * 0.2, GZ + wx * 0.2, 380, 4, SEED + 30, ridged=True)
 amp = 750 + 1500 * smoothstep(0, 3500, dist_plain)
 mountain = amp * (0.25 + 0.75 * ridge ** 1.2) + detail * 90
 M = smoothstep(0, 1300, dist_plain) ** 1.25
@@ -205,6 +214,9 @@ for c in L.CORRIDORS:
     dist = dist.reshape(N, N)
     cf = d[idx.reshape(N, N), 2]
     excess = np.maximum(0, dist - c["half"])
+    # the nearest-sample floor jumps between distant parts of the polyline: blur it away from the corridor
+    cf_blur = ndimage.gaussian_filter(cf, 60)
+    cf = cf * (1 - smoothstep(0, 250, excess)) + cf_blur * smoothstep(0, 250, excess)
     wall = cf + floor_noise + KS[c["name"]] * excess ** 1.18 * wall_var + gully * np.clip(excess / 140, 0, 1)
     H = smin(H, wall, 30.0)
     corr_mask = np.maximum(corr_mask, 1 - smoothstep(c["half"], c["half"] + 150, dist))
@@ -227,6 +239,7 @@ H = H.astype(np.float32)
 log(f"terrain: base range {H.min():.1f} .. {H.max():.1f}")
 
 H_natural = H.copy()
+max_step(H, "base terrain")
 
 # ----------------------------------------------------------------------------
 # 2. Rivers, creeks, canals
@@ -303,6 +316,7 @@ for name, lx, lz, lr, ldepth in L.LAKES:
     water_level[d < lr + 2] = level
     lakes_out.append(dict(name=name, x=lx, z=lz, r=lr, level=round(level, 2)))
 
+max_step(H, "after water")
 # ----------------------------------------------------------------------------
 # 3. Landmark pads
 # ----------------------------------------------------------------------------
@@ -442,7 +456,13 @@ for vname, vx, vz, vr, vstyle, nh in L.VILLAGES:
             px = vx + math.cos(a) * s - math.sin(a) * bend
             pz = vz + math.sin(a) * s + math.cos(a) * bend
             pts.append((px, pz))
-        pts = [p for p in pts if not landmark_hit(*p) and river_dist(*p)[0] > 25]
+        h_c = float(sample(H, vx, vz)[0])
+        kept = []
+        for p_ in pts:
+            if abs(float(sample(H, p_[0], p_[1])[0]) - h_c) > 22.0:
+                break       # stop where the lane would climb the mountainside
+            kept.append(p_)
+        pts = [p_ for p_ in kept if not landmark_hit(*p_) and river_dist(*p_)[0] > 25]
         if len(pts) > 2:
             village_lanes.append(dict(name=f"{vname}, улица {li + 1}", type="dirt" if vstyle == "mountain" else "rural",
                                       pts=pts, village=vname))
@@ -460,9 +480,53 @@ roads_out = []
 all_samples_by_tier = {0: [], 1: [], 2: []}
 H_pre_roads = H.copy()
 
+def carve_piece(P, Hh, W):
+    global H
+    reach = float(W.max()) + 3.0 + 140.0
+    i0 = max(0, int((P[:, 0].min() - reach - ORIGIN) / CELL))
+    i1 = min(N, int((P[:, 0].max() + reach - ORIGIN) / CELL) + 2)
+    j0 = max(0, int((P[:, 1].min() - reach - ORIGIN) / CELL))
+    j1 = min(N, int((P[:, 1].max() + reach - ORIGIN) / CELL) + 2)
+    sub = (slice(j0, j1), slice(i0, i1))
+    gx = GX[sub]
+    gz = GZ[sub]
+    tree = cKDTree(P)
+    dist, idx = tree.query(np.c_[gx.ravel(), gz.ravel()], distance_upper_bound=reach)
+    dist = dist.reshape(gx.shape)
+    idx = idx.reshape(gx.shape)
+    v = np.isfinite(dist)
+    if not v.any():
+        return
+    idx[~v] = 0
+    hr = Hh[idx].astype(np.float32)
+    wr = W[idx].astype(np.float32)
+    Hs = H[sub]
+    occ_sub = road_occ[sub]
+    flat = v & (dist <= wr + 3.0)
+    newH = Hs.copy()
+    newH[flat] = hr[flat] - 0.30
+    sl = v & ~flat
+    diff = np.abs(Hs[sl] - hr[sl])
+    blend = np.clip(diff * 1.45, 4.0, 140.0)
+    t = smoothstep(0.0, 1.0, (dist[sl] - wr[sl] - 3.0) / blend)
+    newH[sl] = (hr[sl] - 0.30) * (1 - t) + Hs[sl] * t
+    if occ_sub.any():
+        d_old = ndimage.distance_transform_edt(~occ_sub) * CELL
+        protect = 1.0 - smoothstep(4.0, 40.0, d_old)
+        protect[flat] = 0.0
+        newH = newH * (1.0 - protect) + Hs * protect
+    newH[occ_sub] = Hs[occ_sub]
+    H[sub] = newH
+    occ = v & (dist <= wr + 1.0)
+    rh = road_h[sub]
+    rh[occ & ~occ_sub] = hr[occ & ~occ_sub]
+    road_h[sub] = rh
+    road_occ[sub] = occ_sub | occ
+
+
 for tier in (0, 1, 2):
     tier_roads = [r for r in roads_in if L.ROAD_TYPES[r["type"]]["tier"] == tier]
-    carve_pts, carve_h, carve_w = [], [], []
+    carve_runs = []
     for r in tier_roads:
         rt = L.ROAD_TYPES[r["type"]]
         pts = np.asarray(r["pts"], float)
@@ -474,7 +538,7 @@ for tier in (0, 1, 2):
         terr = sample(H, p[:, 0], p[:, 1])
         existing = sample(np.nan_to_num(road_h, nan=-9999.0), p[:, 0], p[:, 1], order=0)
         pinned = existing > -9000
-        if r["type"] in ("highway", "mountain", "rural", "dirt"):
+        if r["type"] == "highway":
             env = ndimage.minimum_filter1d(terr, 31 if r["type"] == "highway" else 25, mode="nearest")
             terr_use = np.minimum(terr, ndimage.gaussian_filter1d(env, 8, mode="nearest") + 1.5)
         else:
@@ -497,9 +561,18 @@ for tier in (0, 1, 2):
         need = np.where(wl > -9000, wl + (3.2 if r["type"] in ("avenue", "boulevard", "highway") else 2.0), -9999)
         # spread the clearance requirement along the road (bridge deck span)
         need = ndimage.maximum_filter1d(need, 9)
-        prof = np.maximum(prof, need)
-        # grade limits (raise only) -> ramps up to bridges
         g = rt["grade"] * 4.0
+        # symmetric grade limit (cut at the top, fill at the bottom) unless pinned to existing roads
+        if not r.get("serpentine"):
+            for _ in range(2):
+                for i in range(1, len(prof)):
+                    if not pinned[i]:
+                        prof[i] = min(max(prof[i], prof[i - 1] - g), prof[i - 1] + g)
+                for i in range(len(prof) - 2, -1, -1):
+                    if not pinned[i]:
+                        prof[i] = min(max(prof[i], prof[i + 1] - g), prof[i + 1] + g)
+        prof = np.maximum(prof, need)
+        # raise-only ramps up to bridge decks
         for i in range(1, len(prof)):
             prof[i] = max(prof[i], prof[i - 1] - g)
         for i in range(len(prof) - 2, -1, -1):
@@ -539,9 +612,7 @@ for tier in (0, 1, 2):
         half = rt["half"]
         walk = rt["sidewalk"]
         keep = ~is_bridge & ~is_tunnel
-        carve_pts.append(p[keep])
-        carve_h.append(prof[keep])
-        carve_w.append(np.full(keep.sum(), half + walk))
+        carve_runs.append((p, prof, np.full(len(p), half + walk), keep))
         # portal holes
         for a, b in runs(is_tunnel):
             for end, direction in ((a, 1), (b, -1)):
@@ -559,38 +630,20 @@ for tier in (0, 1, 2):
         roads_out.append(out)
         all_samples_by_tier[tier].append((len(roads_out) - 1, p, prof, half + walk))
 
-    if not carve_pts:
-        continue
-    cp = np.vstack(carve_pts)
-    ch = np.concatenate(carve_h)
-    cw = np.concatenate(carve_w)
-    tree = cKDTree(cp)
-    reach = float(cw.max()) + 45
-    dist, idx = tree.query(np.c_[GX.ravel(), GZ.ravel()], distance_upper_bound=reach, workers=-1)
-    dist = dist.reshape(N, N)
-    idx = idx.reshape(N, N)
-    v = np.isfinite(dist)
-    hr = np.zeros((N, N), np.float32)
-    wr = np.zeros((N, N), np.float32)
-    hr[v] = ch[idx[v]]
-    wr[v] = cw[idx[v]]
-    flat = v & (dist <= wr + 3.0)
-    newH = H.copy()
-    newH[flat] = hr[flat] - 0.30
-    # embankment / cut slopes ~ 35-40 degrees
-    sl = v & (dist > wr + 3.0) & ~road_occ
-    diff = np.abs(H[sl] - hr[sl])
-    blend = np.clip(diff * 1.45, 4.0, 260.0)
-    t = smoothstep(0.0, 1.0, (dist[sl] - wr[sl] - 3.0) / blend)
-    newH[sl] = (hr[sl] - 0.30) * (1 - t) + H[sl] * t
-    # never re-carve existing higher-tier roads
-    newH[road_occ] = H[road_occ]
-    H = newH
-    occ = v & (dist <= wr + 1.0)
-    road_h[occ & ~road_occ] = hr[occ & ~road_occ]
-    road_occ |= occ
+    # sequential carving in ~240 m pieces: every piece blends into the terrain carved so far,
+    # so switchbacks and parallel roads never create cliffs between their flat zones
+    for (pp, hh, ww, kk) in carve_runs:
+        lab, nl = ndimage.label(kk)
+        for li in range(1, nl + 1):
+            ids = np.where(lab == li)[0]
+            for s0 in range(0, len(ids), 60):
+                sel = ids[max(0, s0 - 2): s0 + 62]
+                if len(sel) < 2:
+                    continue
+                carve_piece(pp[sel], hh[sel], ww[sel])
     log(f"roads: tier {tier}: {len(tier_roads)} roads carved")
 
+max_step(H, "after roads")
 # terrain holes must never cut through a road that is carved on the surface
 holes[road_occ & (holes == 1)] = 0
 

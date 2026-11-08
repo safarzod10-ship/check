@@ -1,0 +1,11 @@
+[
+ {"hour": 11, "weather": 0},
+ {"wait": 25},
+ {"shot": "/tmp/claude-0/shots/p1_center.png"},
+ {"teleport": "470,-1700,0"},
+ {"wait": 25},
+ {"shot": "/tmp/claude-0/shots/p2_varzob.png"},
+ {"teleport": "-3900,2000,-90"},
+ {"wait": 25},
+ {"shot": "/tmp/claude-0/shots/p3_hisor.png"}
+]

@@ -43,4 +43,5 @@ static func build(k: MeshKit, lm: Dictionary) -> void:
 		for i in 4:
 			LmKit.lamp(d, Vector3(sx * 33, 0.05, fz - 15 + i * 10), 5.5, true)
 			LmKit.tree(k, Vector3(sx * 40, 0.1, zc + i * 16 - 20), 9.0, 3.0, 2100 + i + int(sx) * 10, 1)
+	LmKit.light(lm, Vector3(0, 0.5, fz + 10), Color(1.0, 0.85, 0.6), 70.0, 5.0, "spot", Vector3(0, 14, pz))
 	LmKit.label(lm, Vector3(0, 16.0, pz + 4.6), "ТЕАТРИ ОПЕРА ВА БАЛЕТ БА НОМИ С. АЙНӢ", 64, Color(1, 0.88, 0.5))

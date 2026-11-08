@@ -1,0 +1,5 @@
+[
+ {"hour": 11, "weather": 0},
+ {"wait": 25},
+ {"shot": "/tmp/claude-0/shots/p1_center.png"}
+]

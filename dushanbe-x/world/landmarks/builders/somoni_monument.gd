@@ -46,4 +46,7 @@ static func build(k: MeshKit, lm: Dictionary) -> void:
 		LmKit.lion(k, "gold", Vector3(sx * 15.0, top + 2.5, 12), 2.2, LmKit.GOLDC, 0.0)
 	# front stairs
 	LmKit.stairs(k, "stone", Vector3(0, -0.3, 19.5), 18.0, 4.0, 2.4, 6, granite.lightened(0.1))
+	# floodlights for the arch and the statue
+	LmKit.light(lm, Vector3(-14, 0.5, 26), Color(1.0, 0.85, 0.6), 70.0, 6.0, "spot", Vector3(0, 22, -8))
+	LmKit.light(lm, Vector3(14, 0.5, 26), Color(1.0, 0.85, 0.6), 70.0, 6.0, "spot", Vector3(0, 12, 3))
 	LmKit.label(lm, Vector3(0, 1.8, 22.6), "ИСМОИЛИ СОМОНӢ\n849 — 907", 72, Color(1, 0.86, 0.45))

@@ -40,7 +40,7 @@ func _make_clump() -> ArrayMesh:
 	for b in 7:
 		var a := rng.randf() * TAU
 		var off := Vector3(rng.randf_range(-0.25, 0.25), 0, rng.randf_range(-0.25, 0.25))
-		var h := rng.randf_range(0.35, 0.75)
+		var h := rng.randf_range(0.18, 0.42)
 		var w := 0.05
 		var dir := Vector3(cos(a), 0, sin(a))
 		var lean := Vector3(rng.randf_range(-0.12, 0.12), 0, rng.randf_range(-0.12, 0.12))
@@ -57,10 +57,10 @@ func _make_clump() -> ArrayMesh:
 	# a couple of flower heads (vertex alpha = 1 marks flower colour)
 	var cols := [Color(0.95, 0.2, 0.15, 1), Color(1, 0.85, 0.2, 1), Color(0.95, 0.95, 1, 1), Color(0.65, 0.35, 0.9, 1)]
 	for f in 2:
-		var p := Vector3(rng.randf_range(-0.3, 0.3), rng.randf_range(0.45, 0.6), rng.randf_range(-0.3, 0.3))
+		var p := Vector3(rng.randf_range(-0.3, 0.3), rng.randf_range(0.28, 0.4), rng.randf_range(-0.3, 0.3))
 		var c: Color = cols[f * 2 % 4]
 		var base2: int = s["v"].size()
-		s["v"].append_array([p + Vector3(-0.06, 0, 0), p + Vector3(0.06, 0, 0), p + Vector3(0, 0.08, 0), p + Vector3(0, 0, 0.06)])
+		s["v"].append_array([p + Vector3(-0.035, 0, 0), p + Vector3(0.035, 0, 0), p + Vector3(0, 0.05, 0), p + Vector3(0, 0, 0.035)])
 		s["n"].append_array([Vector3.UP, Vector3.UP, Vector3.UP, Vector3.UP])
 		s["c"].append_array([c, c, c, c])
 		s["uv"].append_array([Vector2.ZERO, Vector2.ZERO, Vector2.ZERO, Vector2.ZERO])
@@ -120,7 +120,7 @@ func _build_cell(k: Vector2i) -> Node3D:
 		var nrm := WorldData.normal_at(x, z)
 		if nrm.y < 0.75:
 			continue
-		var s := rng.randf_range(0.7, 1.4)
+		var s := rng.randf_range(0.6, 1.1)
 		var b := Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(s, s * rng.randf_range(0.8, 1.3), s))
 		buf.append_array([b.x.x, b.y.x, b.z.x, x - ox, b.x.y, b.y.y, b.z.y, h - 0.05, b.x.z, b.y.z, b.z.z, z - oz,
 			clampf(sp.r + rng.randf() * 0.5, 0.0, 1.0), 0.0, 0.0, 0.0])

@@ -77,6 +77,7 @@ static func build(k: MeshKit, lm: Dictionary) -> void:
 	for i in 8:
 		var a := TAU * i / 8.0 + 0.2
 		LmKit.flower_bed(d, Vector3(cos(a) * 22.0, 0.1, sin(a) * 22.0), Vector2(6, 3), 50 + i, -a)
+	LmKit.light(lm, Vector3(0, 3.0, 12), Color(1, 0.95, 0.85), 180.0, 8.0, "spot", Vector3(0, 150, 0))
 	LmKit.label(lm, Vector3(0, 3.5, 10.5), "ПАРКИ ПАРЧАМИ ДАВЛАТӢ\nПарк Национального флага", 64, Color(1, 0.9, 0.5))
 
 

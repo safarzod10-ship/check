@@ -120,11 +120,14 @@ static func _roof_hip(kit: MeshKit, t: Transform3D, w: float, d: float, h: float
 
 
 # ---------------------------------------------------------------------------
-static func build_near(kit: MeshKit, b: Array, org: Vector3, labels: Array) -> void:
+
+
+
+static func build_near(kit: MeshKit, b: Array, org: Vector3, labels: Array, full := true) -> void:
 	var st: int = b[6]
 	match st:
 		0, 1:
-			_panel_block(kit, b, org)
+			_panel_block(kit, b, org, full)
 		2:
 			_tower(kit, b, org, labels)
 		3:
@@ -141,7 +144,7 @@ static func build_near(kit: MeshKit, b: Array, org: Vector3, labels: Array) -> v
 			build_far(kit, b, org)
 
 
-static func _panel_block(kit: MeshKit, b: Array, org: Vector3) -> void:
+static func _panel_block(kit: MeshKit, b: Array, org: Vector3, full := true) -> void:
 	var st: int = b[6]
 	var r := rnd(int(b[8]))
 	var t := transform_of(b, org)
@@ -172,6 +175,8 @@ static func _panel_block(kit: MeshKit, b: Array, org: Vector3) -> void:
 	if st == 1:
 		# lift machine room
 		kit.box("plain", t, Vector3(0, h + 1.8, 0), Vector3(5.0, 3.6, 5.0), col.darkened(0.12))
+	if not full:
+		return
 	# balconies on the street side (+Z), some glazed
 	var bal_col := col.darkened(0.15)
 	var cols_n := int(w / 3.2)

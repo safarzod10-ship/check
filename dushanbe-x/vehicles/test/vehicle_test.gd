@@ -9,12 +9,15 @@ var terrain: Node
 var mode := "drive"
 var out_dir := "/tmp/claude-0/shots"
 var cam: Camera3D
+var only := ""
 
 
 func _ready() -> void:
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--mode="):
 			mode = a.substr(7)
+		elif a.begins_with("--only="):
+			only = a.substr(7)
 		elif a.begins_with("--out="):
 			out_dir = a.substr(6)
 	DirAccess.make_dir_recursive_absolute(out_dir)
@@ -183,6 +186,10 @@ func _wait_terrain(max_t := 120.0) -> void:
 
 
 func _shots() -> void:
+	if only == "traffic":
+		await _traffic_shot()
+		get_tree().quit()
+		return
 	# 1) line-up of all types on Dusti square
 	var z0 := 1790.0
 	var x := 318.0
@@ -218,6 +225,11 @@ func _shots() -> void:
 	await _wait(2.0)
 	await _shot("vehicles_night.png")
 	TimeWeather.hour = 11.0
+	await _traffic_shot()
+	get_tree().quit()
+
+
+func _traffic_shot() -> void:
 	# 2) traffic on Rudaki avenue
 	var tm := TrafficManager.new()
 	tm.name = "Traffic"
@@ -225,23 +237,23 @@ func _shots() -> void:
 	cam.fov = 60.0
 	cam.global_position = Vector3(522, WorldData.height_at(522, 2330) + 7.0, 2330)
 	cam.look_at(Vector3(500, WorldData.height_at(500, 2250) + 1.0, 2250))
+	await _wait_terrain()
 	var rud := _find_road("проспект Рудаки")
 	var rpts: Array = WorldData.roads[rud]["pts"]
 	var types := ["sedan", "taxi", "bus", "hatchback", "minibus", "suv", "old_sedan", "taxi", "sedan", "truck"]
 	var q := 0
 	for i in rpts.size():
 		var zz: float = rpts[i][2]
-		if zz > 2120.0 and zz < 2300.0 and i % 7 == 0 and q < types.size():
+		if zz > 2150.0 and zz < 2310.0 and i % 4 == 0 and q < types.size():
 			tm.spawn_on(rud, i, 1 if q % 2 == 0 else -1, (q / 2) % 2, types[q])
 			q += 1
-	await _wait_terrain()
-	await _wait(3.0)
+	await _wait(1.5)
 	print("traffic cars: ", tm.cars.size(), " parked: ", tm.parked.spots.size())
 	for c in tm.cars:
 		if is_instance_valid(c) and c.global_position.distance_to(cam.global_position) < 150.0:
 			print("  car ", c.car_type, " pos ", c.global_position, " kmh ", snappedf(c.get_speed_kmh(), 0.1), " ground ", snappedf(WorldData.height_at(c.global_position.x, c.global_position.z), 0.01))
 	await _shot("vehicles_traffic.png")
-	get_tree().quit()
+
 
 
 func _police_test() -> Dictionary:

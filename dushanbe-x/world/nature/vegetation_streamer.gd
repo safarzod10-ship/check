@@ -3,7 +3,7 @@ extends Node3D
 ## Trees, bushes, rocks, street trees, orchards and vineyards per 500 m sector (MultiMesh),
 ## plus the grass field around the player (GrassField child).
 
-const NEAR_DIST := 230.0
+const NEAR_DIST := 130.0
 const RASTER := 2.5
 const RN := 200                   # raster cells per sector side (500 / 2.5)
 
@@ -123,6 +123,11 @@ func _instantiate(key: Vector2i, data: Dictionary, near: bool) -> Array:
 			continue
 		if not near and (sp == "rock" or sp == "bush"):
 			continue
+		if not near:
+			buf = _thin(buf, 2, 1.15)
+			count = buf.size() / 16
+			if count == 0:
+				continue
 		var mm := MultiMesh.new()
 		mm.transform_format = MultiMesh.TRANSFORM_3D
 		mm.use_custom_data = true
@@ -144,6 +149,22 @@ func _instantiate(key: Vector2i, data: Dictionary, near: bool) -> Array:
 		add_child(mi)
 		nodes.append(mi)
 	return nodes
+
+
+## Keeps every `keep_every`-th instance and scales the kept ones (far LOD density reduction).
+func _thin(buf: PackedFloat32Array, keep_every: int, scale: float) -> PackedFloat32Array:
+	var out := PackedFloat32Array()
+	var n := buf.size() / 16
+	for i in range(0, n, keep_every):
+		var o := i * 16
+		for c in 12:
+			var v := buf[o + c]
+			if c != 3 and c != 7 and c != 11:
+				v *= scale
+			out.append(v)
+		for c in range(12, 16):
+			out.append(buf[o + c])
+	return out
 
 
 # ---------------------------------------------------------------------------

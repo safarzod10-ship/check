@@ -10,9 +10,9 @@ void fragment() {
 	float r2 = sin((wp.x + wp.z) * 3.7 - TIME * 3.0);
 	vec3 n = normalize(vec3(r1 * 0.08 + r2 * 0.04, 1.0, r2 * 0.06 - r1 * 0.03));
 	NORMAL = normalize((VIEW_MATRIX * vec4(n, 0.0)).xyz);
-	ALBEDO = mix(deep, COLOR.rgb, 0.45);
-	ROUGHNESS = 0.04;
+	ALBEDO = mix(deep, COLOR.rgb, 0.15);
+	ROUGHNESS = 0.12;
 	METALLIC = 0.1;
-	SPECULAR = 0.9;
+	SPECULAR = 0.45;
 	ALPHA = 0.88;
 }
