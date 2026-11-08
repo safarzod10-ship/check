@@ -88,7 +88,13 @@ func _process(delta: float) -> void:
 func _update(delta: float) -> void:
 	var h := TimeWeather.hour
 	# sun moves east (+X) -> south (+Z) -> west (-X); north is -Z
-	var day_angle := (h - 6.0) / 24.0 * TAU              # 0 at 6:00 (sunrise), PI/2 at noon
+	# summer day in Dushanbe: sunrise 6:00, sunset 20:00 (sun path over the south), night arc below
+	var day_angle: float
+	if h >= 6.0 and h <= 20.0:
+		day_angle = PI * (h - 6.0) / 14.0
+	else:
+		var hn := h - 20.0 if h > 20.0 else h + 4.0
+		day_angle = PI + PI * hn / 10.0
 	var elev := sin(day_angle) * deg_to_rad(64.0)
 	var azim := day_angle                                  # 0 east, PI/2 south, PI west
 	var sun_dir := Vector3(cos(azim) * cos(elev), sin(elev), sin(azim) * cos(elev) * 0.85 + 0.25).normalized()

@@ -80,12 +80,13 @@ func _process(delta: float) -> void:
 
 func _night(h: float) -> float:
 	# 0 during the day, 1 at night with dusk/dawn ramps
-	if h < 5.0 or h > 20.5:
+	# street lights / windows: on from dusk (19:30) to dawn (6:30)
+	if h < 5.5 or h > 20.5:
 		return 1.0
-	if h < 7.0:
-		return 1.0 - (h - 5.0) / 2.0
-	if h > 18.5:
-		return (h - 18.5) / 2.0
+	if h < 6.5:
+		return 1.0 - (h - 5.5)
+	if h > 19.3:
+		return (h - 19.3) / 1.2
 	return 0.0
 
 
@@ -111,4 +112,6 @@ func time_string() -> String:
 
 ## Sun direction (pointing from the sun towards the world)
 func sun_elevation_deg() -> float:
-	return sin((hour - 6.0) / 24.0 * TAU) * 62.0
+	if hour >= 6.0 and hour <= 20.0:
+		return sin(PI * (hour - 6.0) / 14.0) * 64.0
+	return -10.0

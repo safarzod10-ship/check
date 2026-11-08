@@ -245,7 +245,7 @@ static func build_chunk_arrays(key: Vector2i, step: int, faces_only: bool) -> Di
 ## Low-poly ring of mountains beyond the map edge so the horizon never ends in the void.
 func _build_horizon() -> void:
 	var rings := [5000.0, 5600.0, 7000.0, 9500.0, 13000.0, 18000.0]
-	var segs := 160
+	var segs := 640
 	var verts := PackedVector3Array()
 	var cols := PackedColorArray()
 	var idx := PackedInt32Array()
@@ -264,7 +264,14 @@ func _build_horizon() -> void:
 			var p := dir * r
 			var h: float
 			if ri == 0:
-				h = WorldData.height_at(clampf(p.x, -4999.0, 4999.0), clampf(p.y, -4999.0, 4999.0)) - 2.0
+				# lowest terrain along this segment of the border so the ring never pokes above the map edge
+				h = 1e9
+				for q in 5:
+					var aa := TAU * (k + (q - 2) * 0.25) / segs
+					var dd := Vector2(cos(aa), sin(aa))
+					var pp := dd * (5000.0 / maxf(absf(dd.x), absf(dd.y)))
+					h = minf(h, WorldData.height_at(clampf(pp.x, -4999.0, 4999.0), clampf(pp.y, -4999.0, 4999.0)))
+				h -= 3.0
 			else:
 				var north := clampf(-p.y / 9000.0 + 0.4, 0.15, 1.3)
 				h = (400.0 + 1900.0 * north) * (0.55 + 0.45 * noise.get_noise_2d(p.x, p.y)) * minf(1.0, ri / 2.0)

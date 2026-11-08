@@ -56,7 +56,7 @@ static func _make(name: String) -> Material:
 			return m
 		"glass":
 			var m := _std(0.06, 0.55)
-			m.specular = 0.9
+			m.metallic_specular = 0.9
 			return m
 		"chrome":
 			var m := _std(0.12, 1.0)

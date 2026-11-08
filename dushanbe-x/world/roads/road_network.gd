@@ -398,8 +398,9 @@ func _bridges(kit: MeshKit, P: PackedVector3Array, Rt: PackedVector3Array, F: Pa
 			var yaw2 := atan2(Rt[q].x, Rt[q].z)
 			var w2 := P[q] + org
 			var g2 := WorldData.height_at(w2.x, w2.z)
+			# local Z = across the road (yaw from the right vector), local X = along the road
 			kit.box_yaw("concrete", Vector3(P[q].x, g2 - 2.0 - org.y, P[q].z), yaw2,
-				Vector3((hw + 0.6) * 2.0, P[q].y + org.y - g2 + 1.9, 3.0), concrete)
+				Vector3(3.0, P[q].y + org.y - g2 + 1.9, (hw + 0.6) * 2.0), concrete)
 
 
 func _tunnels(kit: MeshKit, P: PackedVector3Array, Rt: PackedVector3Array, F: PackedByteArray, cnt: int,
@@ -444,7 +445,8 @@ func _tunnels(kit: MeshKit, P: PackedVector3Array, Rt: PackedVector3Array, F: Pa
 		kit.ribbon("lamp_always", l1, l2, Color(1.0, 0.85, 0.55))
 		# portals
 		for q in [s, e]:
-			var yaw := atan2(Rt[q].x, Rt[q].z)
+			# portal frame: local X across the road (= right vector), local Z along the road
+			var yaw := atan2(Rt[q].x, Rt[q].z) - PI * 0.5
 			var t := Transform3D(Basis(Vector3.UP, yaw), P[q] - Vector3(0, 0.5, 0))
 			var pc := Color(0.62, 0.6, 0.57)
 			kit.box("concrete", t, Vector3(-(hw + 4.0), 6.5, 0), Vector3(8.0, 14.0, 1.5), pc)
