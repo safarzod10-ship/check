@@ -1,0 +1,211 @@
+import { mnemonicNew, mnemonicToPrivateKey, mnemonicValidate } from "@ton/crypto";
+import { TonClient, WalletContractV4, internal, JettonMaster, JettonWallet } from "@ton/ton";
+import { Address, toNano, fromNano, beginCell, internal as _i } from "@ton/core";
+
+export type Net = "testnet" | "mainnet";
+
+const ENDPOINTS: Record<Net, string> = {
+  testnet: "https://testnet.toncenter.com/api/v2/jsonRPC",
+  mainnet: "https://toncenter.com/api/v2/jsonRPC",
+};
+
+// Jetton master addresses. USDT on mainnet is the official Tether jetton.
+// On testnet we leave USDT/SOMONI configurable (deploy your own via scripts/deploy-somoni).
+export interface JettonDef {
+  id: string;
+  name: string;
+  symbol: string;
+  decimals: number;
+  color: string;
+  master: Partial<Record<Net, string>>;
+}
+
+export const JETTONS: JettonDef[] = [
+  {
+    id: "usdt",
+    name: "Tether USD",
+    symbol: "USDT",
+    decimals: 6,
+    color: "#26A17B",
+    master: {
+      mainnet: "EQCxE6mUtQJKFnGfaROTKOt1lZbDiiX1kCixRv7Nw2Id_sDs",
+      // set your testnet USDT jetton master here if you deploy a test one
+    },
+  },
+  {
+    id: "somoni",
+    name: "Somoni",
+    symbol: "SOMONI",
+    decimals: 9,
+    color: "#C98A12",
+    master: {
+      // Filled in after you run scripts/deploy-somoni.ts (prints the master address)
+    },
+  },
+];
+
+export interface Account {
+  mnemonic: string[];
+  address: string;         // user-friendly, bounceable=false
+  publicKeyHex: string;
+}
+
+export interface AssetBalance {
+  id: string;
+  name: string;
+  symbol: string;
+  color: string;
+  amount: string;          // human readable
+  decimals: number;
+}
+
+function client(net: Net) {
+  return new TonClient({ endpoint: ENDPOINTS[net] });
+}
+
+export async function createAccount(): Promise<Account> {
+  const mnemonic = await mnemonicNew(24);
+  return accountFromMnemonic(mnemonic);
+}
+
+export async function importAccount(words: string[]): Promise<Account> {
+  const valid = await mnemonicValidate(words);
+  if (!valid) throw new Error("Нодуруст: санҷед, ки 24 калима дуруст навишта шудаанд.");
+  return accountFromMnemonic(words);
+}
+
+async function accountFromMnemonic(mnemonic: string[]): Promise<Account> {
+  const key = await mnemonicToPrivateKey(mnemonic);
+  const wallet = WalletContractV4.create({ workchain: 0, publicKey: key.publicKey });
+  return {
+    mnemonic,
+    address: wallet.address.toString({ bounceable: false, testOnly: false }),
+    publicKeyHex: key.publicKey.toString("hex"),
+  };
+}
+
+export function fmtAddress(addr: string, head = 6, tail = 6): string {
+  if (addr.length <= head + tail + 1) return addr;
+  return `${addr.slice(0, head)}…${addr.slice(-tail)}`;
+}
+
+export async function getTonBalance(net: Net, address: string): Promise<string> {
+  try {
+    const c = client(net);
+    const bal = await c.getBalance(Address.parse(address));
+    return fromNano(bal);
+  } catch {
+    return "0";
+  }
+}
+
+async function jettonWalletAddress(net: Net, master: string, owner: string): Promise<Address | null> {
+  try {
+    const c = client(net);
+    const jm = c.open(JettonMaster.create(Address.parse(master)));
+    return await jm.getWalletAddress(Address.parse(owner));
+  } catch {
+    return null;
+  }
+}
+
+export async function getJettonBalance(net: Net, def: JettonDef, owner: string): Promise<string> {
+  const master = def.master[net];
+  if (!master) return "0";
+  try {
+    const jwAddr = await jettonWalletAddress(net, master, owner);
+    if (!jwAddr) return "0";
+    const c = client(net);
+    const jw = c.open(JettonWallet.create(jwAddr));
+    const bal = await jw.getBalance();
+    return scaleDown(bal, def.decimals);
+  } catch {
+    return "0";
+  }
+}
+
+function scaleDown(v: bigint, decimals: number): string {
+  const neg = v < 0n;
+  let s = (neg ? -v : v).toString().padStart(decimals + 1, "0");
+  const i = s.length - decimals;
+  let out = `${s.slice(0, i)}.${s.slice(i)}`.replace(/\.?0+$/, "");
+  if (out === "") out = "0";
+  return (neg ? "-" : "") + out;
+}
+
+function scaleUp(human: string, decimals: number): bigint {
+  const [whole, frac = ""] = human.replace(",", ".").split(".");
+  const fracPadded = (frac + "0".repeat(decimals)).slice(0, decimals);
+  return BigInt(whole || "0") * 10n ** BigInt(decimals) + BigInt(fracPadded || "0");
+}
+
+export async function loadAssets(net: Net, address: string): Promise<AssetBalance[]> {
+  const ton = await getTonBalance(net, address);
+  const out: AssetBalance[] = [
+    { id: "ton", name: "Toncoin", symbol: "TON", color: "#0098EA", amount: ton, decimals: 9 },
+  ];
+  for (const j of JETTONS) {
+    const amt = await getJettonBalance(net, j, address);
+    out.push({ id: j.id, name: j.name, symbol: j.symbol, color: j.color, amount: amt, decimals: j.decimals });
+  }
+  return out;
+}
+
+export async function sendTon(
+  net: Net, mnemonic: string[], to: string, amountTon: string, comment?: string
+): Promise<void> {
+  const c = client(net);
+  const key = await mnemonicToPrivateKey(mnemonic);
+  const wallet = c.open(WalletContractV4.create({ workchain: 0, publicKey: key.publicKey }));
+  const seqno = await wallet.getSeqno();
+  await wallet.sendTransfer({
+    secretKey: key.secretKey,
+    seqno,
+    messages: [
+      internal({
+        to: Address.parse(to),
+        value: toNano(amountTon),
+        body: comment && comment.length ? comment : undefined,
+        bounce: false,
+      }),
+    ],
+  });
+}
+
+export async function sendJetton(
+  net: Net, def: JettonDef, mnemonic: string[], to: string, amountHuman: string, comment?: string
+): Promise<void> {
+  const master = def.master[net];
+  if (!master) throw new Error(`${def.symbol} ҳанӯз дар ин шабака насб нашудааст.`);
+  const c = client(net);
+  const key = await mnemonicToPrivateKey(mnemonic);
+  const wallet = c.open(WalletContractV4.create({ workchain: 0, publicKey: key.publicKey }));
+  const owner = wallet.address.toString({ bounceable: false });
+  const jwAddr = await jettonWalletAddress(net, master, owner);
+  if (!jwAddr) throw new Error("Jetton wallet ёфт нашуд.");
+
+  const amount = scaleUp(amountHuman, def.decimals);
+  const forwardPayload = comment && comment.length
+    ? beginCell().storeUint(0, 32).storeStringTail(comment).endCell()
+    : null;
+
+  const body = beginCell()
+    .storeUint(0x0f8a7ea5, 32)                 // op: jetton transfer
+    .storeUint(0n, 64)                          // query id
+    .storeCoins(amount)                         // amount
+    .storeAddress(Address.parse(to))            // destination
+    .storeAddress(Address.parse(owner))         // response destination
+    .storeBit(false)                            // no custom payload
+    .storeCoins(forwardPayload ? toNano("0.000000001") : 0n) // forward amount
+    .storeMaybeRef(forwardPayload)              // forward payload
+    .endCell();
+
+  const seqno = await wallet.getSeqno();
+  await wallet.sendTransfer({
+    secretKey: key.secretKey,
+    seqno,
+    messages: [internal({ to: jwAddr, value: toNano("0.05"), body, bounce: true })],
+  });
+}
+
+export { toNano, fromNano };

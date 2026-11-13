@@ -1,0 +1,398 @@
+import "./style.css";
+import QRCode from "qrcode";
+import {
+  createAccount, importAccount, loadAssets, sendTon, sendJetton,
+  fmtAddress, JETTONS, type Account, type AssetBalance, type Net,
+} from "./ton";
+import {
+  saveVault, hasVault, unlock, wipe, vaultAddress, getSettings, setSettings,
+} from "./storage";
+
+const app = document.getElementById("app")!;
+
+// ---- in-memory session state (secret lives here only while unlocked) ----
+let session: { mnemonic: string[]; address: string } | null = null;
+let settings = getSettings();
+let pendingAccount: Account | null = null; // during onboarding
+let assetsCache: AssetBalance[] = [];
+
+const el = (html: string): HTMLElement => {
+  const d = document.createElement("div");
+  d.innerHTML = html.trim();
+  return d.firstElementChild as HTMLElement;
+};
+const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!));
+
+function toast(msg: string) {
+  const t = el(`<div class="toast">${esc(msg)}</div>`);
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2600);
+}
+
+function brandHeader(sub = "Ҳамёни рақамии Тоҷикистон") {
+  return `<div class="brand"><img src="./logo.svg" alt=""/><div><div class="name">Somon</div><div class="sub">${esc(sub)}</div></div></div>`;
+}
+function netBadge() {
+  return settings.net === "testnet"
+    ? `<span class="testnet-badge"><span class="dot"></span>TESTNET — пулҳои санҷишӣ</span>`
+    : `<span class="testnet-badge" style="color:#17b06b;border-color:rgba(23,176,107,.4);background:rgba(23,176,107,.12)"><span class="dot" style="background:#17b06b"></span>MAINNET</span>`;
+}
+
+// ---------------- Router ----------------
+type Route =
+  | { name: "welcome" } | { name: "create" } | { name: "backup" } | { name: "setpin" }
+  | { name: "import" } | { name: "lock" } | { name: "home" } | { name: "receive" }
+  | { name: "send"; asset?: string } | { name: "buy" } | { name: "settings" };
+
+function go(r: Route) { render(r); }
+
+function render(r: Route) {
+  app.innerHTML = "";
+  switch (r.name) {
+    case "welcome": return app.appendChild(ScreenWelcome());
+    case "create": return void onCreate();
+    case "backup": return app.appendChild(ScreenBackup());
+    case "setpin": return app.appendChild(ScreenSetPin());
+    case "import": return app.appendChild(ScreenImport());
+    case "lock": return app.appendChild(ScreenLock());
+    case "home": return app.appendChild(ScreenHome());
+    case "receive": return app.appendChild(ScreenReceive());
+    case "send": return app.appendChild(ScreenSend(r.asset));
+    case "buy": return app.appendChild(ScreenBuy());
+    case "settings": return app.appendChild(ScreenSettings());
+  }
+}
+
+// ---------------- Onboarding ----------------
+function ScreenWelcome(): HTMLElement {
+  const s = el(`<div class="screen center">
+    <div>
+      <img class="logo-hero" src="./logo.svg" alt="Somon"/>
+      <h1>Somon</h1>
+      <p class="lead">Ҳамёни рақамии Тоҷикистон барои TON, USDT ва SOMONI. Калидҳо танҳо дар дасти шумо.</p>
+    </div>
+    ${netBadge()}
+    <div class="center-col" style="margin-top:8px">
+      <button class="btn btn-primary" id="create">Ҳамёни нав сохтан</button>
+      <button class="btn btn-ghost" id="import">Воридоти ҳамён (24 калима)</button>
+    </div>
+    <p class="lead" style="font-size:12px;margin-top:8px">Пешфарз: TESTNET. Инро дар Танзимот иваз кардан мумкин аст.</p>
+  </div>`);
+  s.querySelector("#create")!.addEventListener("click", () => go({ name: "create" }));
+  s.querySelector("#import")!.addEventListener("click", () => go({ name: "import" }));
+  return s;
+}
+
+async function onCreate() {
+  const loading = el(`<div class="screen center"><div class="center-col"><span class="spinner" style="margin:0 auto"></span><p class="lead">Сохтани ҳамён…</p></div></div>`);
+  app.appendChild(loading);
+  pendingAccount = await createAccount();
+  go({ name: "backup" });
+}
+
+function ScreenBackup(): HTMLElement {
+  const words = pendingAccount!.mnemonic;
+  const grid = words.map((w, i) => `<div class="w"><b>${i + 1}.</b>${esc(w)}</div>`).join("");
+  const s = el(`<div class="screen">
+    ${brandHeader("Нусхаи захиравӣ")}
+    <h2>24 калимаи захиравӣ</h2>
+    <div class="warn">Инро рӯйнавис карда, дар ҷои бехатар нигоҳ доред. Ҳар касе ки ин калимаҳоро донад — ба маблағи шумо дастрасӣ пайдо мекунад. Онро ба касе нафиристед.</div>
+    <div class="mnemonic">${grid}</div>
+    <div class="btn-row">
+      <button class="btn btn-ghost" id="copy">Нусха</button>
+      <button class="btn btn-primary" id="next">Навиштам — идома</button>
+    </div>
+  </div>`);
+  s.querySelector("#copy")!.addEventListener("click", async () => {
+    await navigator.clipboard.writeText(words.join(" ")).catch(() => {});
+    toast("Нусхабардорӣ шуд");
+  });
+  s.querySelector("#next")!.addEventListener("click", () => go({ name: "setpin" }));
+  return s;
+}
+
+function ScreenSetPin(): HTMLElement {
+  const s = el(`<div class="screen">
+    ${brandHeader("Муҳофизат")}
+    <h2>PIN-код гузоред</h2>
+    <p class="lead" style="margin:0">Бо ин PIN калидҳои шумо дар дастгоҳ рамзгузорӣ мешаванд (AES-GCM).</p>
+    <label class="field"><div class="lbl">PIN (камаш 4 рақам)</div><input id="p1" type="password" inputmode="numeric" placeholder="••••"/></label>
+    <label class="field"><div class="lbl">Такрори PIN</div><input id="p2" type="password" inputmode="numeric" placeholder="••••"/></label>
+    <button class="btn btn-primary" id="save">Нигоҳ доштан ва кушодан</button>
+  </div>`);
+  s.querySelector("#save")!.addEventListener("click", async () => {
+    const p1 = (s.querySelector("#p1") as HTMLInputElement).value.trim();
+    const p2 = (s.querySelector("#p2") as HTMLInputElement).value.trim();
+    if (p1.length < 4) return toast("PIN камаш 4 рақам");
+    if (p1 !== p2) return toast("PIN мувофиқат намекунад");
+    await saveVault(pendingAccount!, p1);
+    session = { mnemonic: pendingAccount!.mnemonic, address: pendingAccount!.address };
+    pendingAccount = null;
+    go({ name: "home" });
+  });
+  return s;
+}
+
+function ScreenImport(): HTMLElement {
+  const s = el(`<div class="screen">
+    <div class="topbar"><div class="back" id="back">‹</div><h2>Воридоти ҳамён</h2></div>
+    <p class="lead" style="margin:0">24 калимаи захиравии худро ворид кунед (бо фосила).</p>
+    <label class="field"><div class="lbl">Калимаҳои захиравӣ</div><textarea id="words" placeholder="word1 word2 …"></textarea></label>
+    <button class="btn btn-primary" id="go">Идома</button>
+  </div>`);
+  s.querySelector("#back")!.addEventListener("click", () => go({ name: "welcome" }));
+  s.querySelector("#go")!.addEventListener("click", async () => {
+    const raw = (s.querySelector("#words") as HTMLTextAreaElement).value.trim().toLowerCase();
+    const words = raw.split(/\s+/).filter(Boolean);
+    if (words.length !== 24) return toast("Бояд маҳз 24 калима бошад");
+    try {
+      pendingAccount = await importAccount(words);
+      go({ name: "setpin" });
+    } catch (e: any) { toast(e.message || "Хатогӣ"); }
+  });
+  return s;
+}
+
+function ScreenLock(): HTMLElement {
+  const addr = vaultAddress() || "";
+  const s = el(`<div class="screen center">
+    <div><img class="logo-hero" src="./logo.svg" alt=""/><h1>Somon</h1>
+    <p class="lead">${esc(fmtAddress(addr, 8, 8))}</p></div>
+    <label class="field"><div class="lbl">PIN-код</div><input id="pin" type="password" inputmode="numeric" placeholder="••••"/></label>
+    <button class="btn btn-primary" id="open">Кушодан</button>
+    <button class="btn btn-danger" id="reset">Ҳамёнро нест кардан</button>
+  </div>`);
+  const open = async () => {
+    const pin = (s.querySelector("#pin") as HTMLInputElement).value.trim();
+    try {
+      const mnemonic = await unlock(pin);
+      session = { mnemonic, address: addr };
+      go({ name: "home" });
+    } catch (e: any) { toast(e.message || "PIN нодуруст"); }
+  };
+  s.querySelector("#open")!.addEventListener("click", open);
+  s.querySelector("#pin")!.addEventListener("keydown", (e: any) => { if (e.key === "Enter") open(); });
+  s.querySelector("#reset")!.addEventListener("click", () => {
+    if (confirm("Ҳамёнро нест кунам? Бе калимаҳои захиравӣ онро барқарор карда наметавонед.")) {
+      wipe(); session = null; go({ name: "welcome" });
+    }
+  });
+  return s;
+}
+
+// ---------------- Main app ----------------
+const PRICES: Record<string, number> = { TON: 5.3, USDT: 1, SOMONI: 1, BTC: 92000 }; // demo reference prices (USD)
+
+function assetSymbolBadge(a: AssetBalance) {
+  const letter = a.symbol[0];
+  return `<div class="sym" style="background:${a.color}">${esc(letter)}</div>`;
+}
+
+function ScreenHome(): HTMLElement {
+  const addr = session!.address;
+  const s = el(`<div class="screen">
+    <div class="row-between">${brandHeader()} ${netBadge()}</div>
+
+    <div class="balance-card">
+      <div class="label">Баланси умумӣ (тахминӣ)</div>
+      <div class="amount" id="total">—</div>
+      <div class="addr"><span id="addr">${esc(fmtAddress(addr, 8, 8))}</span>
+        <span class="chip" id="copyaddr" style="cursor:pointer">Нусха</span></div>
+    </div>
+
+    <div class="actions">
+      <div class="action" id="a-send"><div class="ico">↑</div><div class="t">Ирсол</div></div>
+      <div class="action" id="a-recv"><div class="ico">↓</div><div class="t">Қабул</div></div>
+      <div class="action" id="a-buy"><div class="ico">⇄</div><div class="t">Хариди SOMONI</div></div>
+      <div class="action" id="a-set"><div class="ico">⚙</div><div class="t">Танзим</div></div>
+    </div>
+
+    <div class="section-title">Дороиҳо</div>
+    <div class="list" id="assets">
+      <div class="asset"><span class="spinner"></span><div class="meta"><div class="n">Боркунӣ…</div></div></div>
+    </div>
+  </div>`);
+
+  s.querySelector("#copyaddr")!.addEventListener("click", async () => {
+    await navigator.clipboard.writeText(addr).catch(() => {}); toast("Адрес нусхабардорӣ шуд");
+  });
+  s.querySelector("#a-send")!.addEventListener("click", () => go({ name: "send" }));
+  s.querySelector("#a-recv")!.addEventListener("click", () => go({ name: "receive" }));
+  s.querySelector("#a-buy")!.addEventListener("click", () => go({ name: "buy" }));
+  s.querySelector("#a-set")!.addEventListener("click", () => go({ name: "settings" }));
+
+  // BTC shown as cross-chain watch asset (honest: not held on TON)
+  refreshAssets(s);
+  s.appendChild(TabBar("home"));
+  return s;
+}
+
+async function refreshAssets(scope: HTMLElement) {
+  const list = scope.querySelector("#assets")!;
+  const totalEl = scope.querySelector("#total")!;
+  try {
+    const assets = await loadAssets(settings.net, session!.address);
+    assetsCache = assets;
+    let totalUsd = 0;
+    list.innerHTML = "";
+    for (const a of assets) {
+      const px = PRICES[a.symbol] ?? 0;
+      const usd = parseFloat(a.amount) * px;
+      totalUsd += usd;
+      const row = el(`<div class="asset">
+        ${assetSymbolBadge(a)}
+        <div class="meta"><div class="n">${esc(a.name)}</div><div class="s">${esc(a.symbol)}${a.id === "somoni" && !JETTONS.find(j=>j.id==="somoni")!.master[settings.net] ? " · деплой кунед" : ""}</div></div>
+        <div class="val"><div class="a">${esc(a.amount)}</div><div class="f">${usd ? "≈ $" + usd.toFixed(2) : ""}</div></div>
+      </div>`);
+      row.addEventListener("click", () => go({ name: "send", asset: a.id }));
+      list.appendChild(row);
+    }
+    // BTC cross-chain (watch only)
+    const btc = el(`<div class="asset">
+      <div class="sym" style="background:#F7931A">₿</div>
+      <div class="meta"><div class="n">Bitcoin</div><div class="s">BTC · шабакаи дигар (watch)</div></div>
+      <div class="val"><div class="a">0</div><div class="f muted">cross-chain</div></div>
+    </div>`);
+    list.appendChild(btc);
+    totalEl.textContent = `$${totalUsd.toFixed(2)}`;
+  } catch {
+    list.innerHTML = `<div class="warn">Шабака дастнорас. Дертар кӯшиш кунед.</div>`;
+    totalEl.textContent = "—";
+  }
+}
+
+function ScreenReceive(): HTMLElement {
+  const addr = session!.address;
+  const s = el(`<div class="screen">
+    <div class="topbar"><div class="back" id="back">‹</div><h2>Қабули маблағ</h2></div>
+    <div class="card center-col" style="align-items:center">
+      <div class="qr"><img id="qr" alt="QR"/></div>
+      <div class="mono" style="text-align:center">${esc(addr)}</div>
+      <button class="btn btn-gold" id="copy">Нусхабардории адрес</button>
+    </div>
+    <p class="lead">Танҳо дороиҳои шабакаи <b>TON (${settings.net})</b> ба ин адрес фиристед.</p>
+  </div>`);
+  s.querySelector("#back")!.addEventListener("click", () => go({ name: "home" }));
+  s.querySelector("#copy")!.addEventListener("click", async () => {
+    await navigator.clipboard.writeText(addr).catch(() => {}); toast("Нусхабардорӣ шуд");
+  });
+  QRCode.toDataURL(addr, { margin: 1, width: 240 }).then((url) => {
+    (s.querySelector("#qr") as HTMLImageElement).src = url;
+  });
+  s.appendChild(TabBar("home"));
+  return s;
+}
+
+function ScreenSend(assetId = "ton"): HTMLElement {
+  const assets = assetsCache.length ? assetsCache : [{ id: "ton", symbol: "TON", name: "Toncoin", color: "#0098EA", amount: "0", decimals: 9 }];
+  const options = assets.filter(a => a.id !== "btc").map(a => `<option value="${a.id}" ${a.id === assetId ? "selected" : ""}>${esc(a.symbol)} — ${esc(a.amount)}</option>`).join("");
+  const s = el(`<div class="screen">
+    <div class="topbar"><div class="back" id="back">‹</div><h2>Ирсоли маблағ</h2></div>
+    <label class="field"><div class="lbl">Дороӣ</div><select id="asset">${options}</select></label>
+    <label class="field"><div class="lbl">Адреси қабулкунанда</div><input id="to" placeholder="EQ… / UQ…"/></label>
+    <label class="field"><div class="lbl">Миқдор</div><input id="amt" inputmode="decimal" placeholder="0.0"/></label>
+    <label class="field"><div class="lbl">Эзоҳ (ихтиёрӣ)</div><input id="memo" placeholder=""/></label>
+    <div class="warn">Амалиёт бебозгашт аст. Адрес ва миқдорро санҷед.</div>
+    <button class="btn btn-primary" id="send">Фиристодан</button>
+  </div>`);
+  s.querySelector("#back")!.addEventListener("click", () => go({ name: "home" }));
+  s.querySelector("#send")!.addEventListener("click", async () => {
+    const id = (s.querySelector("#asset") as HTMLSelectElement).value;
+    const to = (s.querySelector("#to") as HTMLInputElement).value.trim();
+    const amt = (s.querySelector("#amt") as HTMLInputElement).value.trim();
+    const memo = (s.querySelector("#memo") as HTMLInputElement).value.trim();
+    if (!to) return toast("Адресро ворид кунед");
+    if (!(parseFloat(amt) > 0)) return toast("Миқдори дуруст ворид кунед");
+    const btn = s.querySelector("#send") as HTMLButtonElement;
+    btn.disabled = true; btn.innerHTML = `<span class="spinner"></span>`;
+    try {
+      if (id === "ton") {
+        await sendTon(settings.net, session!.mnemonic, to, amt, memo);
+      } else {
+        const def = JETTONS.find(j => j.id === id)!;
+        await sendJetton(settings.net, def, session!.mnemonic, to, amt, memo);
+      }
+      toast("Фиристода шуд ✓");
+      setTimeout(() => go({ name: "home" }), 800);
+    } catch (e: any) {
+      toast(e.message || "Хатогии ирсол");
+      btn.disabled = false; btn.textContent = "Фиристодан";
+    }
+  });
+  s.appendChild(TabBar("home"));
+  return s;
+}
+
+function ScreenBuy(): HTMLElement {
+  const s = el(`<div class="screen">
+    <div class="topbar"><div class="back" id="back">‹</div><h2>Хариди SOMONI</h2></div>
+    <div class="card center-col">
+      <label class="field"><div class="lbl">Пардохт</div>
+        <select id="from"><option value="TON">TON</option><option value="USDT">USDT</option></select></label>
+      <div style="text-align:center;color:var(--muted)">⇅</div>
+      <label class="field"><div class="lbl">Мегиред</div>
+        <input id="get" value="SOMONI" disabled/></label>
+      <label class="field"><div class="lbl">Миқдор</div><input id="amt" inputmode="decimal" placeholder="0.0"/></label>
+      <div class="muted" id="quote" style="font-size:13px">Қурби тахминӣ: 1 USDT ≈ 1 SOMONI</div>
+      <button class="btn btn-gold" id="swap">Иваз кардан (своп)</button>
+    </div>
+    <p class="lead">Своп тавассути DEX-и TON (масалан STON.fi/DeDust) иҷро мешавад. Пас аз деплойи SOMONI jetton ва ҷуфти ликвидӣ фаъол мегардад.</p>
+  </div>`);
+  s.querySelector("#back")!.addEventListener("click", () => go({ name: "home" }));
+  s.querySelector("#swap")!.addEventListener("click", () => {
+    toast("Своп фаъол мешавад пас аз насби SOMONI ва ликвидият");
+  });
+  s.appendChild(TabBar("home"));
+  return s;
+}
+
+function ScreenSettings(): HTMLElement {
+  const s = el(`<div class="screen">
+    <div class="topbar"><div class="back" id="back">‹</div><h2>Танзимот</h2></div>
+    <div class="card center-col">
+      <div class="row-between"><div><div class="n" style="font-weight:700">Шабака</div><div class="muted" style="font-size:13px">Testnet — пулҳои санҷишӣ, бепул аз faucet</div></div></div>
+      <label class="field"><select id="net">
+        <option value="testnet" ${settings.net === "testnet" ? "selected" : ""}>Testnet (тавсия барои санҷиш)</option>
+        <option value="mainnet" ${settings.net === "mainnet" ? "selected" : ""}>Mainnet (маблағи воқеӣ)</option>
+      </select></label>
+    </div>
+    <div class="card">
+      <div class="row-between"><div class="n" style="font-weight:700">Адреси ҳамён</div></div>
+      <div class="mono" style="margin-top:8px">${esc(session?.address || vaultAddress() || "")}</div>
+    </div>
+    <button class="btn btn-ghost" id="lock">Қулф кардан</button>
+    <button class="btn btn-danger" id="wipe">Нест кардани ҳамён аз дастгоҳ</button>
+    <p class="lead" style="font-size:12px">Somon — ҳамёни ғайрикастодиалӣ. Калидҳо танҳо дар дастгоҳи шумо нигоҳ дошта мешаванд.</p>
+  </div>`);
+  s.querySelector("#back")!.addEventListener("click", () => go({ name: "home" }));
+  (s.querySelector("#net") as HTMLSelectElement).addEventListener("change", (e: any) => {
+    settings = { net: e.target.value as Net }; setSettings(settings); toast("Шабака иваз шуд"); go({ name: "home" });
+  });
+  s.querySelector("#lock")!.addEventListener("click", () => { session = null; go({ name: "lock" }); });
+  s.querySelector("#wipe")!.addEventListener("click", () => {
+    if (confirm("Ҳамёнро аз ин дастгоҳ нест кунам?")) { wipe(); session = null; go({ name: "welcome" }); }
+  });
+  s.appendChild(TabBar("settings"));
+  return s;
+}
+
+function TabBar(active: string): HTMLElement {
+  const tab = el(`<div class="tabbar">
+    <div class="tab ${active === "home" ? "active" : ""}" id="t-home"><span class="ti">◇</span>Асосӣ</div>
+    <div class="tab" id="t-recv"><span class="ti">↓</span>Қабул</div>
+    <div class="tab" id="t-buy"><span class="ti">⇄</span>Хариди</div>
+    <div class="tab ${active === "settings" ? "active" : ""}" id="t-set"><span class="ti">⚙</span>Танзим</div>
+  </div>`);
+  tab.querySelector("#t-home")!.addEventListener("click", () => go({ name: "home" }));
+  tab.querySelector("#t-recv")!.addEventListener("click", () => go({ name: "receive" }));
+  tab.querySelector("#t-buy")!.addEventListener("click", () => go({ name: "buy" }));
+  tab.querySelector("#t-set")!.addEventListener("click", () => go({ name: "settings" }));
+  return tab;
+}
+
+// ---------------- boot ----------------
+function boot() {
+  if (hasVault()) go({ name: "lock" });
+  else go({ name: "welcome" });
+}
+boot();
