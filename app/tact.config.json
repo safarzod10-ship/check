@@ -1,0 +1,10 @@
+{
+  "projects": [
+    {
+      "name": "somora_treasury",
+      "path": "./contracts/somora_treasury.tact",
+      "output": "./contracts/output",
+      "options": { "debug": false }
+    }
+  ]
+}

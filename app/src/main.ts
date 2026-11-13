@@ -2,7 +2,7 @@ import "./style.css";
 import QRCode from "qrcode";
 import {
   createAccount, importAccount, loadAssets, sendTon, sendJetton, getTransactions,
-  fmtAddress, JETTONS, BTC_ICON, type Account, type AssetBalance, type Net, type TxItem,
+  fmtAddress, JETTONS, BTC_ICON, TREASURY, type Account, type AssetBalance, type Net, type TxItem,
 } from "./ton";
 import {
   saveVault, hasVault, unlock, wipe, vaultAddress, getSettings, setSettings,
@@ -560,40 +560,44 @@ function ScreenSend(assetId = "ton"): HTMLElement {
 }
 
 function ScreenBuy(): HTMLElement {
+  const t = TREASURY[settings.net];
   const s = el(`<div class="screen">
     <div class="topbar"><div class="back" id="back">‹</div><h2>Хариди SOMONI</h2></div>
     <div class="card center-col">
-      <label class="field"><div class="lbl">Пардохт</div>
-        <select id="from"><option value="TON">TON</option><option value="USDT">USDT</option></select></label>
+      <label class="field"><div class="lbl">Пардохт</div><input value="TON" disabled/></label>
       <div class="swap-arrow">⇅</div>
-      <label class="field"><div class="lbl">Мегиред (SOMONI)</div>
-        <input id="get" value="0" disabled/></label>
-      <label class="field"><div class="lbl">Миқдор</div><input id="amt" inputmode="decimal" placeholder="0.0"/></label>
-      <div class="muted" id="rate" style="font-size:13px">Қурби бозорӣ боркунӣ…</div>
-      <button class="btn btn-gold" id="swap">Ҳисоб кардан</button>
+      <label class="field"><div class="lbl">Мегиред (SOMONI)</div><input id="get" value="0" disabled/></label>
+      <label class="field"><div class="lbl">Миқдори TON${t ? ` (мин. ${t.min})` : ""}</div><input id="amt" inputmode="decimal" placeholder="0.0"/></label>
+      <div class="muted" id="rate" style="font-size:13px">${t ? `Қурб: 1 TON = ${t.rate} SOMONI` : ""}</div>
+      <button class="btn btn-gold" id="swap">Харидани SOMONI</button>
     </div>
-    <div class="warn" style="background:rgba(53,228,255,.08);border-color:rgba(53,228,255,.3);color:#cdefff">
-      Своп дар шабака пас аз сохтани <b>пули ликвидӣ</b> (STON.fi/DeDust) фаъол мешавад. Ҳоло ин ҳисобкунаки қурб аст.
-    </div>
+    ${t
+      ? `<p class="lead" style="font-size:12px">TON ба казначейии SOMORA меравад, SOMONI худкор ба ҳамёни шумо бармегардад (чанд сония). Шабака: ${settings.net}.</p>`
+      : `<div class="warn">Дар ин шабака казначейство ҳанӯз насб нашудааст.</div>`}
   </div>`);
-  let prices: Record<string, PriceInfo> = {};
-  const rateEl = s.querySelector("#rate") as HTMLElement;
   const getEl = s.querySelector("#get") as HTMLInputElement;
   const amtEl = s.querySelector("#amt") as HTMLInputElement;
-  const fromEl = s.querySelector("#from") as HTMLSelectElement;
   const recalc = () => {
-    const from = fromEl.value;
-    const px = prices[from]?.smn ?? 0; // смн per 1 unit; 1 SOMONI = 1 смн
     const amt = parseFloat(amtEl.value.replace(",", ".")) || 0;
-    const out = amt * px;
-    getEl.value = out ? out.toLocaleString("ru-RU", { maximumFractionDigits: 2 }) : "0";
-    if (px) rateEl.textContent = `Қурби бозорӣ: 1 ${from} ≈ ${px.toLocaleString("ru-RU", { maximumFractionDigits: 2 })} SOMONI`;
+    getEl.value = (amt * (t?.rate ?? 0)).toLocaleString("ru-RU", { maximumFractionDigits: 2 });
   };
-  (async () => { prices = await fetchPrices(); recalc(); })();
-  fromEl.addEventListener("change", recalc);
   amtEl.addEventListener("input", recalc);
   s.querySelector("#back")!.addEventListener("click", () => go({ name: "home" }));
-  s.querySelector("#swap")!.addEventListener("click", () => { recalc(); toast("Ҳисоб шуд. Своп фаъол мешавад пас аз пули ликвидӣ."); });
+  s.querySelector("#swap")!.addEventListener("click", async () => {
+    if (!t) return toast("Казначейство дар ин шабака нест");
+    const amt = parseFloat(amtEl.value.replace(",", ".")) || 0;
+    if (amt < t.min) return toast(`Миқдори ҳадди ақал ${t.min} TON`);
+    const btn = s.querySelector("#swap") as HTMLButtonElement;
+    btn.disabled = true; btn.innerHTML = `<span class="spinner"></span>`;
+    try {
+      await sendTon(settings.net, session!.mnemonic, t.address, String(amt)); // empty body → buy
+      toast("Фиристода шуд ✓ SOMONI дар чанд сония меояд");
+      setTimeout(() => go({ name: "home" }), 1400);
+    } catch (e: any) {
+      toast(e.message || "Хатогии харид");
+      btn.disabled = false; btn.textContent = "Харидани SOMONI";
+    }
+  });
   s.appendChild(TabBar("home"));
   return s;
 }

@@ -52,6 +52,12 @@ export const JETTONS: JettonDef[] = [
   },
 ];
 
+// SOMORA Treasury: buy SOMONI by sending TON here; owner receives the TON.
+export const TREASURY: Partial<Record<Net, { address: string; rate: number; min: number }>> = {
+  testnet: { address: "kQAcz4dSx33sb4QstskSOUxG-7CFJc-ay6tm_YqVIAMqW6ps", rate: 10, min: 0.2 },
+  // mainnet treasury goes here after a mainnet deploy
+};
+
 export interface Account {
   mnemonic: string[];
   address: string;         // user-friendly, bounceable=false
