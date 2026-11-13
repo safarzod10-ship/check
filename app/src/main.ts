@@ -67,7 +67,7 @@ function render(r: Route) {
 function ScreenWelcome(): HTMLElement {
   const s = el(`<div class="screen center">
     <div>
-      <img class="logo-hero" src="./logo.svg" alt="Somon"/>
+      <div class="logo-glow"><img class="logo-hero" src="./logo.svg" alt="Somon"/></div>
       <h1>Somon</h1>
       <p class="lead">Ҳамёни рақамии Тоҷикистон барои TON, USDT ва SOMONI. Калидҳо танҳо дар дасти шумо.</p>
     </div>
@@ -156,7 +156,7 @@ function ScreenImport(): HTMLElement {
 function ScreenLock(): HTMLElement {
   const addr = vaultAddress() || "";
   const s = el(`<div class="screen center">
-    <div><img class="logo-hero" src="./logo.svg" alt=""/><h1>Somon</h1>
+    <div><div class="logo-glow"><img class="logo-hero" src="./logo.svg" alt=""/></div><h1>Somon</h1>
     <p class="lead">${esc(fmtAddress(addr, 8, 8))}</p></div>
     <label class="field"><div class="lbl">PIN-код</div><input id="pin" type="password" inputmode="numeric" placeholder="••••"/></label>
     <button class="btn btn-primary" id="open">Кушодан</button>
@@ -209,7 +209,7 @@ function ScreenHome(): HTMLElement {
 
     <div class="section-title">Дороиҳо</div>
     <div class="list" id="assets">
-      <div class="asset"><span class="spinner"></span><div class="meta"><div class="n">Боркунӣ…</div></div></div>
+      ${[0,1,2,3].map(()=>`<div class="asset"><div class="sym skeleton" style="background:none"></div><div class="meta"><div class="skeleton" style="height:13px;width:70%"></div><div class="skeleton" style="height:10px;width:40%;margin-top:8px"></div></div><div class="skeleton" style="height:14px;width:42px"></div></div>`).join("")}
     </div>
   </div>`);
 
@@ -329,7 +329,7 @@ function ScreenBuy(): HTMLElement {
     <div class="card center-col">
       <label class="field"><div class="lbl">Пардохт</div>
         <select id="from"><option value="TON">TON</option><option value="USDT">USDT</option></select></label>
-      <div style="text-align:center;color:var(--muted)">⇅</div>
+      <div class="swap-arrow">⇅</div>
       <label class="field"><div class="lbl">Мегиред</div>
         <input id="get" value="SOMONI" disabled/></label>
       <label class="field"><div class="lbl">Миқдор</div><input id="amt" inputmode="decimal" placeholder="0.0"/></label>
