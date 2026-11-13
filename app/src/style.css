@@ -238,3 +238,30 @@ a { color: var(--cyan); }
 .chg.down { color:#ff5e7a; background: rgba(255,94,122,.13); }
 .coin-img { width:46px; height:46px; }
 .asset .val .a { font-size:15.5px; }
+
+/* ================= PIN screen (keypad) ================= */
+.pin-screen { justify-content: flex-start; padding-top: 40px; gap: 10px; }
+.pin-head { text-align:center; display:flex; flex-direction:column; align-items:center; gap:4px; margin-bottom: 6px; }
+.logo-hero.sm { width: 80px; height: 80px; border-radius: 22px; margin-bottom: 4px; }
+.pin-head h2 { font-size: 22px; margin-top: 4px; }
+.mono-sm { font-family:"Space Grotesk", ui-monospace, monospace; font-size: 12.5px; color:#9fb0d4 !important; }
+.pin-head #hint, .pin-head #sub { font-size: 13.5px; }
+
+.pinpad { max-width: 304px; margin: 10px auto 0; width: 100%; }
+.pin-dots { display:flex; gap:16px; justify-content:center; margin: 10px 0 26px; }
+.pin-dot { width: 15px; height: 15px; border-radius:50%; border:2px solid rgba(255,255,255,.22); transition: all .18s; }
+.pin-dot.on { background: var(--green); border-color: var(--green); box-shadow: 0 0 14px rgba(24,224,138,.7); transform: scale(1.1); }
+.pin-dots.shake { animation: shake .45s; }
+@keyframes shake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-10px)} 40%{transform:translateX(9px)} 60%{transform:translateX(-7px)} 80%{transform:translateX(5px)} }
+
+.keypad { display:grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.key { height: 66px; border-radius: 20px; display:grid; place-items:center; font-family:"Space Grotesk", sans-serif; font-size: 26px; font-weight: 600; color: var(--text); cursor:pointer;
+  background: var(--glass); border:1px solid var(--glass-brd); backdrop-filter: blur(10px);
+  transition: transform .1s, background .15s; user-select:none; }
+.key:active { transform: scale(.93); background: rgba(24,224,138,.16); border-color: rgba(24,224,138,.4); }
+.key.fn { background: transparent; border-color: transparent; color: var(--muted); font-size: 22px; backdrop-filter:none; }
+.key.fn:active { background: rgba(255,255,255,.07); }
+
+.btn-link { background:none; border:none; font-family:inherit; font-size:14px; font-weight:600; cursor:pointer; padding:14px; margin-top: 8px; }
+.btn-link.danger { color: var(--red); opacity:.8; }
+.btn-link.danger:active { opacity: 1; }

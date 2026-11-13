@@ -112,25 +112,68 @@ function ScreenBackup(): HTMLElement {
   return s;
 }
 
+// Reusable 4-digit PIN pad: dots + numeric keypad, auto-submits at 4 digits.
+interface PinPad extends HTMLElement { shake(): void; reset(): void }
+function PinKeypad(onComplete: (pin: string) => void): PinPad {
+  let pin = "";
+  const keys = [1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => `<div class="key" data-k="${n}">${n}</div>`).join("");
+  const wrap = el(`<div class="pinpad">
+    <div class="pin-dots">${[0,1,2,3].map(() => '<div class="pin-dot"></div>').join("")}</div>
+    <div class="keypad">
+      ${keys}
+      <div class="key fn" data-k="back">⌫</div>
+      <div class="key" data-k="0">0</div>
+      <div class="key fn" data-k="clear">✕</div>
+    </div>
+  </div>`) as PinPad;
+  const dotsRow = wrap.querySelector(".pin-dots") as HTMLElement;
+  const dots = wrap.querySelectorAll(".pin-dot");
+  const render = () => dots.forEach((d, i) => d.classList.toggle("on", i < pin.length));
+  wrap.querySelectorAll(".key").forEach((k) => k.addEventListener("click", () => {
+    const v = k.getAttribute("data-k")!;
+    if (v === "back") pin = pin.slice(0, -1);
+    else if (v === "clear") pin = "";
+    else if (pin.length < 4) pin += v;
+    render();
+    if (pin.length === 4) { const p = pin; setTimeout(() => onComplete(p), 130); }
+  }));
+  wrap.shake = () => { dotsRow.classList.add("shake"); setTimeout(() => { pin = ""; render(); dotsRow.classList.remove("shake"); }, 460); };
+  wrap.reset = () => { pin = ""; render(); };
+  return wrap;
+}
+
 function ScreenSetPin(): HTMLElement {
-  const s = el(`<div class="screen">
-    ${brandHeader("Муҳофизат")}
-    <h2>PIN-код гузоред</h2>
-    <p class="lead" style="margin:0">Бо ин PIN калидҳои шумо дар дастгоҳ рамзгузорӣ мешаванд (AES-GCM).</p>
-    <label class="field"><div class="lbl">PIN (камаш 4 рақам)</div><input id="p1" type="password" inputmode="numeric" placeholder="••••"/></label>
-    <label class="field"><div class="lbl">Такрори PIN</div><input id="p2" type="password" inputmode="numeric" placeholder="••••"/></label>
-    <button class="btn btn-primary" id="save">Нигоҳ доштан ва кушодан</button>
+  let first = "";
+  const s = el(`<div class="screen center pin-screen">
+    <div class="pin-head">
+      <div class="logo-glow"><img class="logo-hero sm" src="./logo.svg" alt=""/></div>
+      <h2 id="t">PIN-код гузоред</h2>
+      <p class="lead" id="sub">4 рақам ворид кунед — бо он калидҳо рамзгузорӣ мешаванд</p>
+    </div>
+    <div id="padhost"></div>
   </div>`);
-  s.querySelector("#save")!.addEventListener("click", async () => {
-    const p1 = (s.querySelector("#p1") as HTMLInputElement).value.trim();
-    const p2 = (s.querySelector("#p2") as HTMLInputElement).value.trim();
-    if (p1.length < 4) return toast("PIN камаш 4 рақам");
-    if (p1 !== p2) return toast("PIN мувофиқат намекунад");
-    await saveVault(pendingAccount!, p1);
-    session = { mnemonic: pendingAccount!.mnemonic, address: pendingAccount!.address };
-    pendingAccount = null;
-    go({ name: "home" });
+  const host = s.querySelector("#padhost")!;
+  const setStep = (t: string, sub: string) => {
+    (s.querySelector("#t") as HTMLElement).textContent = t;
+    (s.querySelector("#sub") as HTMLElement).textContent = sub;
+  };
+  const pad = PinKeypad(async (pin) => {
+    if (!first) {
+      first = pin;
+      setStep("Такрори PIN", "PIN-ро боз як бор ворид кунед");
+      pad.reset();
+    } else if (pin === first) {
+      await saveVault(pendingAccount!, pin);
+      session = { mnemonic: pendingAccount!.mnemonic, address: pendingAccount!.address };
+      pendingAccount = null;
+      go({ name: "home" });
+    } else {
+      first = "";
+      setStep("PIN-код гузоред", "PIN мувофиқат накард — боз кӯшиш кунед");
+      pad.shake();
+    }
   });
+  host.appendChild(pad);
   return s;
 }
 
@@ -156,23 +199,27 @@ function ScreenImport(): HTMLElement {
 
 function ScreenLock(): HTMLElement {
   const addr = vaultAddress() || "";
-  const s = el(`<div class="screen center">
-    <div><div class="logo-glow"><img class="logo-hero" src="./logo.svg" alt=""/></div><h1>Somon</h1>
-    <p class="lead">${esc(fmtAddress(addr, 8, 8))}</p></div>
-    <label class="field"><div class="lbl">PIN-код</div><input id="pin" type="password" inputmode="numeric" placeholder="••••"/></label>
-    <button class="btn btn-primary" id="open">Кушодан</button>
-    <button class="btn btn-danger" id="reset">Ҳамёнро нест кардан</button>
+  const s = el(`<div class="screen center pin-screen">
+    <div class="pin-head">
+      <div class="logo-glow"><img class="logo-hero sm" src="./logo.svg" alt=""/></div>
+      <h2>Somon</h2>
+      <p class="lead mono-sm">${esc(fmtAddress(addr, 6, 6))}</p>
+      <p class="lead" id="hint">PIN-кодро ворид кунед</p>
+    </div>
+    <div id="padhost"></div>
+    <button class="btn-link danger" id="reset">Ҳамёнро нест кардан</button>
   </div>`);
-  const open = async () => {
-    const pin = (s.querySelector("#pin") as HTMLInputElement).value.trim();
+  const pad = PinKeypad(async (pin) => {
     try {
       const mnemonic = await unlock(pin);
       session = { mnemonic, address: addr };
       go({ name: "home" });
-    } catch (e: any) { toast(e.message || "PIN нодуруст"); }
-  };
-  s.querySelector("#open")!.addEventListener("click", open);
-  s.querySelector("#pin")!.addEventListener("keydown", (e: any) => { if (e.key === "Enter") open(); });
+    } catch {
+      (s.querySelector("#hint") as HTMLElement).textContent = "PIN нодуруст — боз кӯшиш кунед";
+      pad.shake();
+    }
+  });
+  s.querySelector("#padhost")!.appendChild(pad);
   s.querySelector("#reset")!.addEventListener("click", () => {
     if (confirm("Ҳамёнро нест кунам? Бе калимаҳои захиравӣ онро барқарор карда наметавонед.")) {
       wipe(); session = null; go({ name: "welcome" });
