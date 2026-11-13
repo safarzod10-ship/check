@@ -1,12 +1,12 @@
 {
-  "name": "Somon Wallet",
-  "short_name": "Somon",
+  "name": "SOMORA Wallet",
+  "short_name": "SOMORA",
   "description": "Ҳамёни рақамии Тоҷикистон — TON, USDT, SOMONI",
   "start_url": "./",
   "display": "standalone",
-  "background_color": "#0B1220",
+  "background_color": "#05070D",
   "theme_color": "#0A5A3C",
   "icons": [
-    { "src": "./logo.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+    { "src": "./brand-logo.png", "sizes": "256x256", "type": "image/png", "purpose": "any" }
   ]
 }

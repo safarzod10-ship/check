@@ -31,7 +31,7 @@ function toast(msg: string) {
 }
 
 function brandHeader(sub = "Ҳамёни рақамии Тоҷикистон") {
-  return `<div class="brand"><img src="./logo.svg" alt=""/><div><div class="name">Somon</div><div class="sub">${esc(sub)}</div></div></div>`;
+  return `<div class="brand"><img src="./brand-logo.png" alt=""/><div><div class="name">SOMORA</div><div class="sub">${esc(sub)}</div></div></div>`;
 }
 function netBadge() {
   return settings.net === "testnet"
@@ -68,8 +68,8 @@ function render(r: Route) {
 function ScreenWelcome(): HTMLElement {
   const s = el(`<div class="screen center">
     <div>
-      <div class="logo-glow"><img class="logo-hero" src="./logo.svg" alt="Somon"/></div>
-      <h1>Somon</h1>
+      <div class="logo-glow"><img class="logo-hero" src="./brand-logo.png" alt="SOMORA"/></div>
+      <h1>SOMORA</h1>
       <p class="lead">Ҳамёни рақамии Тоҷикистон барои TON, USDT ва SOMONI. Калидҳо танҳо дар дасти шумо.</p>
     </div>
     ${netBadge()}
@@ -146,7 +146,7 @@ function ScreenSetPin(): HTMLElement {
   let first = "";
   const s = el(`<div class="screen center pin-screen">
     <div class="pin-head">
-      <div class="logo-glow"><img class="logo-hero sm" src="./logo.svg" alt=""/></div>
+      <div class="logo-glow"><img class="logo-hero sm" src="./brand-logo.png" alt=""/></div>
       <h2 id="t">PIN-код гузоред</h2>
       <p class="lead" id="sub">4 рақам ворид кунед — бо он калидҳо рамзгузорӣ мешаванд</p>
     </div>
@@ -201,8 +201,8 @@ function ScreenLock(): HTMLElement {
   const addr = vaultAddress() || "";
   const s = el(`<div class="screen center pin-screen">
     <div class="pin-head">
-      <div class="logo-glow"><img class="logo-hero sm" src="./logo.svg" alt=""/></div>
-      <h2>Somon</h2>
+      <div class="logo-glow"><img class="logo-hero sm" src="./brand-logo.png" alt=""/></div>
+      <h2>SOMORA</h2>
       <p class="lead mono-sm">${esc(fmtAddress(addr, 6, 6))}</p>
       <p class="lead" id="hint">PIN-кодро ворид кунед</p>
     </div>
@@ -474,7 +474,7 @@ function ScreenSettings(): HTMLElement {
     </div>
     <button class="btn btn-ghost" id="lock">Қулф кардан</button>
     <button class="btn btn-danger" id="wipe">Нест кардани ҳамён аз дастгоҳ</button>
-    <p class="lead" style="font-size:12px">Somon — ҳамёни ғайрикастодиалӣ. Калидҳо танҳо дар дастгоҳи шумо нигоҳ дошта мешаванд.</p>
+    <p class="lead" style="font-size:12px">SOMORA — ҳамёни ғайрикастодиалӣ. Калидҳо танҳо дар дастгоҳи шумо нигоҳ дошта мешаванд.</p>
   </div>`);
   s.querySelector("#back")!.addEventListener("click", () => go({ name: "home" }));
   (s.querySelector("#net") as HTMLSelectElement).addEventListener("change", (e: any) => {

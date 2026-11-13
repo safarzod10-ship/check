@@ -2,7 +2,7 @@ import type { CapacitorConfig } from "@capacitor/cli";
 
 const config: CapacitorConfig = {
   appId: "tj.somon.wallet",
-  appName: "Somon",
+  appName: "SOMORA",
   webDir: "dist",
   android: {
     allowMixedContent: false,

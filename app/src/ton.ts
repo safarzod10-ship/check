@@ -44,7 +44,7 @@ export const JETTONS: JettonDef[] = [
     symbol: "SOMONI",
     decimals: 9,
     color: "#C98A12",
-    icon: "./logo.svg", // our own original token logo
+    icon: "./somoni-coin.png", // user-provided SOMONI coin image
     master: {
       testnet: "kQAFnmFcJaOWjBuggPb3W1g9udA2R2JsAjScMDNO52kqMRki",
       // mainnet master goes here after a mainnet deploy
