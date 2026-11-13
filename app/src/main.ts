@@ -257,14 +257,15 @@ function assetSymbolBadge(a: { symbol: string; color: string; icon?: string }) {
 function ScreenHome(): HTMLElement {
   const addr = session!.address;
   const s = el(`<div class="screen home">
-    <div class="home-top">${brandHeader()} ${netBadge()}</div>
-
     <div class="ptr" id="ptr"><span class="spinner"></span></div>
 
-    <div class="balance-block">
-      <div class="label">Баланси умумӣ</div>
-      <div class="amount" id="total">—</div>
-      <div class="addr-chip" id="copyaddr"><span>${esc(fmtAddress(addr, 6, 6))}</span><span class="copy-ic">⧉</span></div>
+    <div class="home-hero">
+      <div class="home-top">${brandHeader()} ${netBadge()}</div>
+      <div class="balance-block">
+        <div class="label">Баланси умумӣ</div>
+        <div class="amount" id="total">—</div>
+        <div class="addr-chip" id="copyaddr"><span>${esc(fmtAddress(addr, 6, 6))}</span><span class="copy-ic">⧉</span></div>
+      </div>
     </div>
 
     <div class="act-row">

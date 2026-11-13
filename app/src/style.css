@@ -208,6 +208,17 @@ a { color: var(--cyan); }
 .home-top .brand img { width:38px; height:38px; }
 .home-top .brand .name { font-size:18px; }
 
+/* hero with Tajikistan background behind the balance */
+.home-hero { position: relative; margin: -22px -16px 10px; padding: calc(env(safe-area-inset-top, 0px) + 20px) 16px 30px; overflow: hidden; border-radius: 0 0 28px 28px; min-height: 330px; }
+.home-hero::before { content:""; position:absolute; inset:0; z-index:-2; background: url('./bg-header.jpg') center 34% / cover no-repeat; }
+.home-hero::after { content:""; position:absolute; inset:0; z-index:-1; background: linear-gradient(180deg, rgba(5,7,13,.12) 0%, rgba(5,7,13,0) 30%, rgba(5,7,13,.55) 75%, var(--bg) 100%); }
+.home-hero .balance-block { padding-top: 20px; }
+.home-hero .balance-block .label { color: rgba(255,255,255,.88); text-shadow: 0 1px 6px rgba(0,0,0,.6); }
+.home-hero .balance-block .amount { background: none; -webkit-text-fill-color: #fff; color:#fff; text-shadow: 0 3px 20px rgba(0,0,0,.7), 0 1px 3px rgba(0,0,0,.6); }
+.home-hero .addr-chip { background: rgba(0,0,0,.42); border-color: rgba(255,255,255,.22); color:#fff; }
+.home-hero .brand .name { text-shadow: 0 1px 8px rgba(0,0,0,.6); }
+.home-hero .brand .sub { color: rgba(255,255,255,.82); text-shadow: 0 1px 6px rgba(0,0,0,.6); }
+
 /* pull-to-refresh */
 .ptr { position:absolute; top:-50px; left:0; right:0; display:flex; justify-content:center; align-items:center; height:40px; opacity:0; pointer-events:none; }
 .ptr .spinner { width:24px; height:24px; }
