@@ -173,10 +173,11 @@ class BackendIntegrationTest {
         val bobId = bob.id
         bob.api.signOut()
         assertNull(bob.store.value, "после выхода сессия стёрта")
-        assertTrue(bob.api.authState.first { it !is AuthState.Loading } is AuthState.SignedOut)
+        withTimeout(10_000) { bob.api.authState.first { it is AuthState.SignedOut } }   // состояние приходит асинхронно
         bob.api.signIn(bob.email, bob.password)
         assertEquals(bobId, bob.id)
         assertNotNull(bob.store.value)
+        withTimeout(10_000) { bob.api.authState.first { it is AuthState.SignedIn } }
     }
 
     @Test @Order(6)
