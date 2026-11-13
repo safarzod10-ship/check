@@ -4,11 +4,11 @@ import jsQR from "jsqr";
 import {
   createAccount, importAccount, loadAssets, sendTon, sendJetton, getTransactions,
   fmtAddress, JETTONS, BTC_ICON, TREASURY, isTreasuryOwner, getTreasuryInfo,
-  treasurySetRate, treasuryWithdraw, treasuryTopUp,
-  type Account, type AssetBalance, type Net, type TxItem,
+  treasurySetRate, treasuryWithdraw, treasuryTopUp, NETWORK,
+  type Account, type AssetBalance, type TxItem,
 } from "./ton";
 import {
-  saveVault, hasVault, unlock, wipe, vaultAddress, getSettings, setSettings,
+  saveVault, hasVault, unlock, wipe, vaultAddress,
 } from "./storage";
 import { fetchPrices, fetchChart, fmtSmn, type PriceInfo } from "./prices";
 
@@ -16,7 +16,6 @@ const app = document.getElementById("app")!;
 
 // ---- in-memory session state (secret lives here only while unlocked) ----
 let session: { mnemonic: string[]; address: string } | null = null;
-let settings = getSettings();
 let pendingAccount: Account | null = null; // during onboarding
 let assetsCache: AssetBalance[] = [];
 
@@ -116,7 +115,7 @@ function brandHeader(sub = "Ҳамёни рақамии Тоҷикистон") {
   return `<div class="brand"><img src="./brand-logo.png" alt=""/><div><div class="name">SOMORA</div><div class="sub">${esc(sub)}</div></div></div>`;
 }
 function netBadge() {
-  return settings.net === "testnet"
+  return NETWORK === "testnet"
     ? `<span class="testnet-badge"><span class="dot"></span>TESTNET — пулҳои санҷишӣ</span>`
     : `<span class="testnet-badge" style="color:#17b06b;border-color:rgba(23,176,107,.4);background:rgba(23,176,107,.12)"><span class="dot" style="background:#17b06b"></span>MAINNET</span>`;
 }
@@ -441,7 +440,7 @@ async function refreshAssets(scope: HTMLElement) {
   const totalEl = scope.querySelector("#total")!;
   try {
     const [assets, prices] = await Promise.all([
-      loadAssets(settings.net, session!.address),
+      loadAssets(NETWORK, session!.address),
       fetchPrices(),
     ]);
     assetsCache = assets;
@@ -455,7 +454,7 @@ async function refreshAssets(scope: HTMLElement) {
       const p: PriceInfo | undefined = prices[a.symbol];
       const smn = parseFloat(a.amount) * (p?.smn ?? 0);
       if (!a.watch) totalSmn += smn;
-      const notDeployed = a.id === "somoni" && !JETTONS.find(j => j.id === "somoni")!.master[settings.net];
+      const notDeployed = a.id === "somoni" && !JETTONS.find(j => j.id === "somoni")!.master[NETWORK];
       const sub = p && p.smn
         ? `<span class="px">${fmtSmn(p.smn, p.smn < 1 ? 4 : 2)}</span> ${changeHtml(p.change24)}`
         : (a.watch ? '<span class="muted">cross-chain</span>' : (notDeployed ? '<span class="muted">деплой кунед</span>' : `<span class="muted">${esc(a.symbol)}</span>`));
@@ -518,7 +517,7 @@ function timeAgo(sec: number): string {
 function ScreenAsset(assetId: string): HTMLElement {
   const a = assetsCache.find((x) => x.id === assetId)
     || { id: assetId, name: assetId, symbol: assetId.toUpperCase(), color: "#888", icon: "", amount: "0", decimals: 9 };
-  const explorer = settings.net === "testnet" ? "https://testnet.tonviewer.com" : "https://tonviewer.com";
+  const explorer = NETWORK === "testnet" ? "https://testnet.tonviewer.com" : "https://tonviewer.com";
   const s = el(`<div class="screen">
     <div class="topbar"><div class="back" id="back">‹</div><h2>${esc(a.name)}</h2></div>
 
@@ -571,7 +570,7 @@ function ScreenAsset(assetId: string): HTMLElement {
 
   // transaction history (account level, TON)
   (async () => {
-    const txs = await getTransactions(settings.net, session!.address, 20);
+    const txs = await getTransactions(NETWORK, session!.address, 20);
     const list = s.querySelector("#tx") as HTMLElement;
     if (!txs.length) { list.innerHTML = `<div class="muted" style="padding:10px 4px">Амалиёт нест</div>`; return; }
     list.innerHTML = "";
@@ -605,7 +604,7 @@ function ScreenReceive(): HTMLElement {
       <div class="mono" style="text-align:center">${esc(addr)}</div>
       <button class="btn btn-gold" id="copy">Нусхабардории адрес</button>
     </div>
-    <p class="lead">Танҳо дороиҳои шабакаи <b>TON (${settings.net})</b> ба ин адрес фиристед.</p>
+    <p class="lead">Танҳо дороиҳои шабакаи <b>TON (${NETWORK})</b> ба ин адрес фиристед.</p>
   </div>`);
   s.querySelector("#back")!.addEventListener("click", () => go({ name: "home" }));
   s.querySelector("#copy")!.addEventListener("click", async () => {
@@ -644,17 +643,17 @@ function ScreenSend(assetId = "ton"): HTMLElement {
       ["Ба", fmtAddress(to, 8, 8)],
       ["Миқдор", `${amt} ${sym}`],
       ["Эзоҳ", memo || "—"],
-      ["Шабака", settings.net],
+      ["Шабака", NETWORK],
     ], "Фиристодан");
     if (!ok) return;
     const btn = s.querySelector("#send") as HTMLButtonElement;
     btn.disabled = true; btn.innerHTML = `<span class="spinner"></span>`;
     try {
       if (id === "ton") {
-        await sendTon(settings.net, session!.mnemonic, to, amt, memo);
+        await sendTon(NETWORK, session!.mnemonic, to, amt, memo);
       } else {
         const def = JETTONS.find(j => j.id === id)!;
-        await sendJetton(settings.net, def, session!.mnemonic, to, amt, memo);
+        await sendJetton(NETWORK, def, session!.mnemonic, to, amt, memo);
       }
       toast("Фиристода шуд ✓");
       setTimeout(() => go({ name: "home" }), 800);
@@ -676,7 +675,7 @@ function ScreenSend(assetId = "ton"): HTMLElement {
 }
 
 function ScreenBuy(): HTMLElement {
-  const t = TREASURY[settings.net];
+  const t = TREASURY[NETWORK];
   const s = el(`<div class="screen">
     <div class="topbar"><div class="back" id="back">‹</div><h2>Хариди SOMONI</h2></div>
     <div class="card center-col">
@@ -688,7 +687,7 @@ function ScreenBuy(): HTMLElement {
       <button class="btn btn-gold" id="swap">Харидани SOMONI</button>
     </div>
     ${t
-      ? `<p class="lead" style="font-size:12px">TON ба казначейии SOMORA меравад, SOMONI худкор ба ҳамёни шумо бармегардад (чанд сония). Шабака: ${settings.net}.</p>`
+      ? `<p class="lead" style="font-size:12px">TON ба казначейии SOMORA меравад, SOMONI худкор ба ҳамёни шумо бармегардад (чанд сония). Шабака: ${NETWORK}.</p>`
       : `<div class="warn">Дар ин шабака казначейство ҳанӯз насб нашудааст.</div>`}
   </div>`);
   const getEl = s.querySelector("#get") as HTMLInputElement;
@@ -706,7 +705,7 @@ function ScreenBuy(): HTMLElement {
     const btn = s.querySelector("#swap") as HTMLButtonElement;
     btn.disabled = true; btn.innerHTML = `<span class="spinner"></span>`;
     try {
-      await sendTon(settings.net, session!.mnemonic, t.address, String(amt)); // empty body → buy
+      await sendTon(NETWORK, session!.mnemonic, t.address, String(amt)); // empty body → buy
       toast("Фиристода шуд ✓ SOMONI дар чанд сония меояд");
       setTimeout(() => go({ name: "home" }), 1400);
     } catch (e: any) {
@@ -719,7 +718,7 @@ function ScreenBuy(): HTMLElement {
 }
 
 function ScreenTreasury(): HTMLElement {
-  const owner = isTreasuryOwner(settings.net, session!.address);
+  const owner = isTreasuryOwner(NETWORK, session!.address);
   const s = el(`<div class="screen">
     <div class="topbar"><div class="back" id="back">‹</div><h2>Казначейство</h2></div>
     ${!owner ? `<div class="warn">Танҳо соҳиби казначейство дастрасӣ дорад.</div>` : `
@@ -746,14 +745,14 @@ function ScreenTreasury(): HTMLElement {
       <label class="field"><div class="lbl">Миқдори SOMONI ба казна</div><input id="top" inputmode="decimal" placeholder="0"/></label>
       <button class="btn btn-ghost" id="topup">Илова кардан</button>
     </div>
-    <p class="lead" style="font-size:12px">Ҳамаи амалиётро шумо ҳамчун соҳиб имзо мекунед. Шабака: ${settings.net}.</p>
+    <p class="lead" style="font-size:12px">Ҳамаи амалиётро шумо ҳамчун соҳиб имзо мекунед. Шабака: ${NETWORK}.</p>
     `}
   </div>`);
   s.querySelector("#back")!.addEventListener("click", () => go({ name: "settings" }));
   if (!owner) { s.appendChild(TabBar("settings")); return s; }
 
   const refresh = async () => {
-    const info = await getTreasuryInfo(settings.net);
+    const info = await getTreasuryInfo(NETWORK);
     if (!info) return;
     (s.querySelector("#tbal") as HTMLElement).textContent = parseFloat(info.ton).toFixed(3) + " TON";
     (s.querySelector("#tsom") as HTMLElement).textContent = parseFloat(info.somoni).toLocaleString("ru-RU");
@@ -773,17 +772,17 @@ function ScreenTreasury(): HTMLElement {
   s.querySelector("#setrate")!.addEventListener("click", () => {
     const v = (s.querySelector("#rate") as HTMLInputElement).value.trim().replace(",", ".");
     if (!(parseFloat(v) > 0)) return toast("Курси дуруст ворид кунед");
-    run("#setrate", () => treasurySetRate(settings.net, session!.mnemonic, v), "Курс нав шуд ✓");
+    run("#setrate", () => treasurySetRate(NETWORK, session!.mnemonic, v), "Курс нав шуд ✓");
   });
   s.querySelector("#withdraw")!.addEventListener("click", () => {
     const v = (s.querySelector("#wd") as HTMLInputElement).value.trim().replace(",", ".");
     if (!(parseFloat(v) > 0)) return toast("Миқдори дуруст ворид кунед");
-    run("#withdraw", () => treasuryWithdraw(settings.net, session!.mnemonic, v), "Бардошта шуд ✓");
+    run("#withdraw", () => treasuryWithdraw(NETWORK, session!.mnemonic, v), "Бардошта шуд ✓");
   });
   s.querySelector("#topup")!.addEventListener("click", () => {
     const v = (s.querySelector("#top") as HTMLInputElement).value.trim().replace(",", ".");
     if (!(parseFloat(v) > 0)) return toast("Миқдори дуруст ворид кунед");
-    run("#topup", () => treasuryTopUp(settings.net, session!.mnemonic, v), "Илова шуд ✓");
+    run("#topup", () => treasuryTopUp(NETWORK, session!.mnemonic, v), "Илова шуд ✓");
   });
 
   s.appendChild(TabBar("settings"));
@@ -793,26 +792,16 @@ function ScreenTreasury(): HTMLElement {
 function ScreenSettings(): HTMLElement {
   const s = el(`<div class="screen">
     <div class="topbar"><div class="back" id="back">‹</div><h2>Танзимот</h2></div>
-    <div class="card center-col">
-      <div class="row-between"><div><div class="n" style="font-weight:700">Шабака</div><div class="muted" style="font-size:13px">Testnet — пулҳои санҷишӣ, бепул аз faucet</div></div></div>
-      <label class="field"><select id="net">
-        <option value="testnet" ${settings.net === "testnet" ? "selected" : ""}>Testnet (тавсия барои санҷиш)</option>
-        <option value="mainnet" ${settings.net === "mainnet" ? "selected" : ""}>Mainnet (маблағи воқеӣ)</option>
-      </select></label>
-    </div>
     <div class="card">
       <div class="row-between"><div class="n" style="font-weight:700">Адреси ҳамён</div></div>
       <div class="mono" style="margin-top:8px">${esc(session?.address || vaultAddress() || "")}</div>
     </div>
-    ${isTreasuryOwner(settings.net, session?.address || "") ? `<button class="btn btn-primary" id="treasury">⚙ Идоракунии казначейство</button>` : ""}
+    ${isTreasuryOwner(NETWORK, session?.address || "") ? `<button class="btn btn-primary" id="treasury">⚙ Идоракунии казначейство</button>` : ""}
     <button class="btn btn-ghost" id="lock">Қулф кардан</button>
     <button class="btn btn-danger" id="wipe">Нест кардани ҳамён аз дастгоҳ</button>
     <p class="lead" style="font-size:12px">SOMORA — ҳамёни ғайрикастодиалӣ. Калидҳо танҳо дар дастгоҳи шумо нигоҳ дошта мешаванд.</p>
   </div>`);
   s.querySelector("#back")!.addEventListener("click", () => go({ name: "home" }));
-  (s.querySelector("#net") as HTMLSelectElement).addEventListener("change", (e: any) => {
-    settings = { net: e.target.value as Net }; setSettings(settings); toast("Шабака иваз шуд"); go({ name: "home" });
-  });
   const tbtn = s.querySelector("#treasury");
   if (tbtn) tbtn.addEventListener("click", () => go({ name: "treasury" }));
   s.querySelector("#lock")!.addEventListener("click", () => { session = null; go({ name: "lock" }); });

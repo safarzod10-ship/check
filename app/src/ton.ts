@@ -4,6 +4,10 @@ import { Address, toNano, fromNano, beginCell, internal as _i } from "@ton/core"
 
 export type Net = "testnet" | "mainnet";
 
+// Single fixed network for the whole app (no in-app switching).
+// Flip to "mainnet" after the mainnet deploy (see MAINNET.md).
+export const NETWORK: Net = "testnet";
+
 const ENDPOINTS: Record<Net, string> = {
   testnet: "https://testnet.toncenter.com/api/v2/jsonRPC",
   mainnet: "https://toncenter.com/api/v2/jsonRPC",
