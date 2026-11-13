@@ -1,7 +1,9 @@
 package tj.payvand.app
 
 import android.Manifest
-import android.app.Activity
+import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
+import androidx.activity.enableEdgeToEdge
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -20,10 +22,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -34,7 +36,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.core.view.WindowCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -68,10 +69,11 @@ fun PayvandRoot(container: AppContainer) {
     PayvandTheme(theme) {
         val dark = pv.isDark
         val view = LocalView.current
-        SideEffect {
-            (view.context as? Activity)?.window?.let { w ->
-                WindowCompat.getInsetsController(w, view).apply { isAppearanceLightStatusBars = !dark; isAppearanceLightNavigationBars = !dark }
-            }
+        LaunchedEffect(dark) {
+            // значки и фон системных панелей следуют теме приложения, а не системы
+            val t = android.graphics.Color.TRANSPARENT
+            val style = if (dark) SystemBarStyle.dark(t) else SystemBarStyle.light(t, t)
+            (view.context as? ComponentActivity)?.enableEdgeToEdge(style, style)
         }
         val langChosen by container.prefs.languageChosen.collectAsState()
         val session by container.session.collectAsState()
@@ -79,7 +81,7 @@ fun PayvandRoot(container: AppContainer) {
         LaunchedEffect(Unit) { if (!splashDone) { delay(2000); splashDone = true } }
         var serverError by rememberSaveable { mutableStateOf(false) }
 
-        Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+        Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             val stage = when { !splashDone -> 0; !langChosen -> 1; session == null -> 2; else -> 3 }
             Crossfade(stage, label = "root") { st ->
                 when (st) {

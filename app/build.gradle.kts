@@ -66,7 +66,8 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            manifestPlaceholders["cleartext"] = "false"  // только HTTPS
+            // только HTTPS; -Ppayvand.allowCleartext=true — лишь для проверки релиза на локальном сервере
+            manifestPlaceholders["cleartext"] = (findProperty("payvand.allowCleartext") ?: "false").toString()
             signingConfig = signingConfigs.findByName("release")
         }
     }

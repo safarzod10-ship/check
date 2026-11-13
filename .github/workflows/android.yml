@@ -1,0 +1,46 @@
+name: Android build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      # Публичные параметры сервера (Settings → Secrets and variables → Actions)
+      PAYVAND_SUPABASE_URL: ${{ secrets.PAYVAND_SUPABASE_URL }}
+      PAYVAND_SUPABASE_ANON_KEY: ${{ secrets.PAYVAND_SUPABASE_ANON_KEY }}
+      PAYVAND_FCM_APP_ID: ${{ secrets.PAYVAND_FCM_APP_ID }}
+      PAYVAND_FCM_API_KEY: ${{ secrets.PAYVAND_FCM_API_KEY }}
+      PAYVAND_FCM_PROJECT_ID: ${{ secrets.PAYVAND_FCM_PROJECT_ID }}
+      PAYVAND_FCM_SENDER_ID: ${{ secrets.PAYVAND_FCM_SENDER_ID }}
+      PAYVAND_VERSION_CODE: ${{ github.run_number }}
+      KEYSTORE_B64: ${{ secrets.PAYVAND_KEYSTORE_BASE64 }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 17 }
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Unit tests
+        run: ./gradlew :core:test
+      - name: Debug APK
+        run: ./gradlew :app:assembleDebug
+      - name: Signed release APK
+        if: env.KEYSTORE_B64 != ''
+        env:
+          PAYVAND_KEYSTORE_FILE: ${{ runner.temp }}/payvand-release.jks
+          PAYVAND_KEYSTORE_PASSWORD: ${{ secrets.PAYVAND_KEYSTORE_PASSWORD }}
+          PAYVAND_KEY_ALIAS: ${{ secrets.PAYVAND_KEY_ALIAS }}
+          PAYVAND_KEY_PASSWORD: ${{ secrets.PAYVAND_KEY_PASSWORD }}
+        run: |
+          echo "$KEYSTORE_B64" | base64 -d > "$PAYVAND_KEYSTORE_FILE"
+          ./gradlew :app:assembleRelease
+          rm -f "$PAYVAND_KEYSTORE_FILE"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: payvand-apk
+          path: app/build/outputs/apk/**/*.apk

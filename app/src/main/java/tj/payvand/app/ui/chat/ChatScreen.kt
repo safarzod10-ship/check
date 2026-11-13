@@ -94,7 +94,11 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -178,7 +182,7 @@ fun ChatScreen(session: ChatSession, container: AppContainer, vm: ChatViewModel,
                         if (m.isSystem) SystemChip(MessageText.system(ctx, m.body, profiles[m.senderId]?.displayName.orEmpty()))
                         else MessageBubble(
                             m = m, mine = m.senderId == vm.myId, status = if (m.senderId == vm.myId) vm.statusOf(m) else null,
-                            showSender = conv?.kind == ConversationType.GROUP && m.senderId != vm.myId && older?.senderId != m.senderId,
+                            showSender = conv?.kind == ConversationType.GROUP && m.senderId != vm.myId && (older == null || older.isSystem || older.senderId != m.senderId),
                             sender = profiles[m.senderId], forwardedFrom = m.forwardedFrom?.let { profiles[it] },
                             replied = m.replyToId?.let { byId[it] }, repliedSender = m.replyToId?.let { byId[it]?.senderId }?.let { profiles[it] },
                             session = session, container = container,
@@ -408,21 +412,25 @@ private fun VoiceContent(m: Message, session: ChatSession, container: AppContain
 private fun Composer(vm: ChatViewModel, ui: ChatUi, profiles: Map<String, Profile>, container: AppContainer) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
-    var text by rememberSaveable { mutableStateOf("") }
+    var field by rememberSaveable(stateSaver = TextFieldValue.Saver) { mutableStateOf(TextFieldValue("")) }
+    val text = field.text
+    fun setText(v: String) { field = TextFieldValue(v, TextRange(v.length)) }
+    val focus = remember { FocusRequester() }
     var attach by remember { mutableStateOf(false) }
     var recording by remember { mutableStateOf(false) }
     var seconds by remember { mutableIntStateOf(0) }
     var preparing by remember { mutableStateOf(false) }
     val recorder = remember { VoiceRecorder(ctx) }
     DisposableEffect(Unit) { onDispose { recorder.cancel() } }
-    LaunchedEffect(ui.editing?.id) { ui.editing?.let { text = it.body } }
+    LaunchedEffect(ui.editing?.id) { ui.editing?.let { setText(it.body); runCatching { focus.requestFocus() } } }
+    LaunchedEffect(ui.replyTo?.id) { if (ui.replyTo != null) runCatching { focus.requestFocus() } }
     LaunchedEffect(recording) { seconds = 0; while (recording) { delay(1000); seconds++; if (seconds >= 300) { recording = false; recorder.stop()?.let { vm.sendMedia(it) } } } }
 
     fun sendUri(uri: android.net.Uri?) {
         if (uri == null) return
         preparing = true
         scope.launch {
-            try { vm.sendMedia(MediaTools.prepare(ctx, uri), text.trim()); text = "" }
+            try { vm.sendMedia(MediaTools.prepare(ctx, uri), text.trim()); setText("") }
             catch (e: PayvandException) { Toast.makeText(ctx, errorMessage(ctx, e), Toast.LENGTH_SHORT).show() }
             catch (e: Exception) { Toast.makeText(ctx, R.string.err_unknown, Toast.LENGTH_SHORT).show() }
             finally { preparing = false }
@@ -444,7 +452,7 @@ private fun Composer(vm: ChatViewModel, ui: ChatUi, profiles: Map<String, Profil
                         Text(if (ui.editing != null) stringResource(R.string.editing) else profiles[ctxMsg?.senderId]?.displayName.orEmpty(), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, maxLines = 1)
                         Text(ctxMsg?.let { MessageText.preview(ctx, it.kind, it.body, it.isDeleted) }.orEmpty(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
-                    IconButton(onClick = { if (ui.editing != null) { vm.edit(null); text = "" } else vm.reply(null) }) { Icon(Icons.Filled.Close, stringResource(R.string.cancel)) }
+                    IconButton(onClick = { if (ui.editing != null) { vm.edit(null); setText("") } else vm.reply(null) }) { Icon(Icons.Filled.Close, stringResource(R.string.cancel)) }
                 }
             }
             if (recording) {
@@ -471,13 +479,13 @@ private fun Composer(vm: ChatViewModel, ui: ChatUi, profiles: Map<String, Profil
                 }
                 Box(Modifier.weight(1f).padding(vertical = 2.dp).heightIn(min = 44.dp, max = 140.dp).clip(RoundedCornerShape(22.dp)).background(MaterialTheme.colorScheme.surfaceContainerHigh).padding(horizontal = 16.dp, vertical = 11.dp), contentAlignment = Alignment.CenterStart) {
                     if (text.isEmpty()) Text(stringResource(R.string.message_hint), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    BasicTextField(text, { text = it.take(4000) }, Modifier.fillMaxWidth(), textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface, fontSize = 16.sp, lineHeight = 21.sp),
+                    BasicTextField(field, { field = if (it.text.length > 4000) it.copy(text = it.text.take(4000)) else it }, Modifier.fillMaxWidth().focusRequester(focus), textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface, fontSize = 16.sp, lineHeight = 21.sp),
                         cursorBrush = SolidColor(MaterialTheme.colorScheme.primary), keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences))
                 }
                 Spacer(Modifier.width(6.dp))
                 if (text.isBlank() && ui.editing == null) RoundAction(Icons.Filled.Mic, stringResource(R.string.voice)) {
                     if (ContextCompat.checkSelfPermission(ctx, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) startRecording() else micPermission.launch(Manifest.permission.RECORD_AUDIO)
-                } else RoundAction(if (ui.editing != null) Icons.Filled.Check else Icons.AutoMirrored.Filled.Send, stringResource(R.string.send)) { vm.submit(text); text = "" }
+                } else RoundAction(if (ui.editing != null) Icons.Filled.Check else Icons.AutoMirrored.Filled.Send, stringResource(R.string.send)) { vm.submit(text); setText("") }
             }
         }
     }
