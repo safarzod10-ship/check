@@ -7,6 +7,7 @@ import {
 import {
   saveVault, hasVault, unlock, wipe, vaultAddress, getSettings, setSettings,
 } from "./storage";
+import { fetchPrices, fmtSmn, type PriceInfo } from "./prices";
 
 const app = document.getElementById("app")!;
 
@@ -181,10 +182,13 @@ function ScreenLock(): HTMLElement {
 }
 
 // ---------------- Main app ----------------
-// Reference rates expressed in Tajik somoni (смн). Approximate — demo only.
-const RATES_SMN: Record<string, number> = { TON: 32.8, USDT: 10.95, SOMONI: 1, BTC: 1_007_400 };
+function changeHtml(ch: number): string {
+  if (!ch) return "";
+  const up = ch >= 0;
+  return `<span class="chg ${up ? "up" : "down"}">${up ? "▲" : "▼"} ${Math.abs(ch).toFixed(2)}%</span>`;
+}
 
-function fmtSomoni(n: number): string {
+function _unusedFmtSomoni(n: number): string {
   const s = n.toFixed(2).replace(".", ",");
   // group thousands with thin spaces
   const [whole, frac] = s.split(",");
@@ -205,21 +209,22 @@ function assetSymbolBadge(a: { symbol: string; color: string; icon?: string }) {
 
 function ScreenHome(): HTMLElement {
   const addr = session!.address;
-  const s = el(`<div class="screen">
-    <div class="row-between">${brandHeader()} ${netBadge()}</div>
+  const s = el(`<div class="screen home">
+    <div class="home-top">${brandHeader()} ${netBadge()}</div>
 
-    <div class="balance-card">
-      <div class="label">Баланси умумӣ (тахминӣ)</div>
+    <div class="ptr" id="ptr"><span class="spinner"></span></div>
+
+    <div class="balance-block">
+      <div class="label">Баланси умумӣ</div>
       <div class="amount" id="total">—</div>
-      <div class="addr"><span id="addr">${esc(fmtAddress(addr, 8, 8))}</span>
-        <span class="chip" id="copyaddr" style="cursor:pointer">Нусха</span></div>
+      <div class="addr-chip" id="copyaddr"><span>${esc(fmtAddress(addr, 6, 6))}</span><span class="copy-ic">⧉</span></div>
     </div>
 
-    <div class="actions">
-      <div class="action" id="a-send"><div class="ico">↑</div><div class="t">Ирсол</div></div>
-      <div class="action" id="a-recv"><div class="ico">↓</div><div class="t">Қабул</div></div>
-      <div class="action" id="a-buy"><div class="ico">⇄</div><div class="t">Хариди SOMONI</div></div>
-      <div class="action" id="a-set"><div class="ico">⚙</div><div class="t">Танзим</div></div>
+    <div class="act-row">
+      <div class="act" id="a-send"><div class="act-ic">↑</div><div class="act-t">Ирсол</div></div>
+      <div class="act" id="a-recv"><div class="act-ic">↓</div><div class="act-t">Қабул</div></div>
+      <div class="act" id="a-buy"><div class="act-ic">⇄</div><div class="act-t">Своп</div></div>
+      <div class="act" id="a-set"><div class="act-ic">⚙</div><div class="act-t">Танзим</div></div>
     </div>
 
     <div class="section-title">Дороиҳо</div>
@@ -236,43 +241,87 @@ function ScreenHome(): HTMLElement {
   s.querySelector("#a-buy")!.addEventListener("click", () => go({ name: "buy" }));
   s.querySelector("#a-set")!.addEventListener("click", () => go({ name: "settings" }));
 
-  // BTC shown as cross-chain watch asset (honest: not held on TON)
+  attachPullToRefresh(s, () => refreshAssets(s));
   refreshAssets(s);
   s.appendChild(TabBar("home"));
   return s;
+}
+
+// Swipe down from the top to refresh — like native wallets.
+function attachPullToRefresh(screen: HTMLElement, onRefresh: () => Promise<void>) {
+  const ptr = screen.querySelector("#ptr") as HTMLElement;
+  const THRESH = 72;
+  let startY = 0, pulling = false, dy = 0, busy = false;
+  screen.addEventListener("touchstart", (e) => {
+    if (busy || window.scrollY > 4) return;
+    startY = e.touches[0].clientY; pulling = true; dy = 0;
+    screen.style.transition = "";
+  }, { passive: true });
+  screen.addEventListener("touchmove", (e) => {
+    if (!pulling) return;
+    dy = e.touches[0].clientY - startY;
+    if (dy > 0) {
+      const pull = Math.min(dy * 0.5, 96);
+      screen.style.transform = `translateY(${pull}px)`;
+      ptr.style.opacity = String(Math.min(pull / THRESH, 1));
+      ptr.classList.toggle("ready", pull >= THRESH);
+    }
+  }, { passive: true });
+  screen.addEventListener("touchend", async () => {
+    if (!pulling) return; pulling = false;
+    const trigger = dy * 0.5 >= THRESH;
+    screen.style.transition = "transform .28s cubic-bezier(.22,1,.36,1)";
+    if (trigger) {
+      busy = true;
+      screen.style.transform = "translateY(52px)";
+      ptr.classList.add("spin");
+      try { await onRefresh(); } catch {}
+    }
+    screen.style.transform = "translateY(0)";
+    setTimeout(() => {
+      ptr.classList.remove("spin", "ready");
+      ptr.style.opacity = "0";
+      screen.style.transition = "";
+      busy = false;
+    }, 300);
+  });
 }
 
 async function refreshAssets(scope: HTMLElement) {
   const list = scope.querySelector("#assets")!;
   const totalEl = scope.querySelector("#total")!;
   try {
-    const assets = await loadAssets(settings.net, session!.address);
+    const [assets, prices] = await Promise.all([
+      loadAssets(settings.net, session!.address),
+      fetchPrices(),
+    ]);
     assetsCache = assets;
     let totalSmn = 0;
     list.innerHTML = "";
-    for (const a of assets) {
-      const rate = RATES_SMN[a.symbol] ?? 0;
-      const smn = parseFloat(a.amount) * rate;
-      totalSmn += smn;
+    const rows: Array<AssetBalance & { watch?: boolean }> = [
+      ...assets,
+      { id: "btc", name: "Bitcoin", symbol: "BTC", color: "#F7931A", icon: BTC_ICON, amount: "0", decimals: 8, watch: true },
+    ];
+    for (const a of rows) {
+      const p: PriceInfo | undefined = prices[a.symbol];
+      const smn = parseFloat(a.amount) * (p?.smn ?? 0);
+      if (!a.watch) totalSmn += smn;
       const notDeployed = a.id === "somoni" && !JETTONS.find(j => j.id === "somoni")!.master[settings.net];
+      const sub = p && p.smn
+        ? `<span class="px">${fmtSmn(p.smn, p.smn < 1 ? 4 : 2)}</span> ${changeHtml(p.change24)}`
+        : (a.watch ? '<span class="muted">cross-chain</span>' : (notDeployed ? '<span class="muted">деплой кунед</span>' : `<span class="muted">${esc(a.symbol)}</span>`));
+      const valueLine = a.watch ? '<div class="f muted">дигар шабака</div>' : (smn ? `<div class="f">${fmtSmn(smn)}</div>` : "");
       const row = el(`<div class="asset">
         ${assetSymbolBadge(a)}
-        <div class="meta"><div class="n">${esc(a.name)}</div><div class="s">${esc(a.symbol)}${notDeployed ? " · деплой кунед" : ""}</div></div>
-        <div class="val"><div class="a">${esc(a.amount)}</div><div class="f">${smn ? "≈ " + fmtSomoni(smn) : ""}</div></div>
+        <div class="meta"><div class="n">${esc(a.name)}</div><div class="s">${sub}</div></div>
+        <div class="val"><div class="a">${esc(a.amount)}</div>${valueLine}</div>
       </div>`);
-      row.addEventListener("click", () => go({ name: "send", asset: a.id }));
+      if (!a.watch) row.addEventListener("click", () => go({ name: "send", asset: a.id }));
       list.appendChild(row);
     }
-    // BTC cross-chain (watch only) — official icon loaded at runtime
-    const btc = el(`<div class="asset">
-      ${assetSymbolBadge({ symbol: "BTC", color: "#F7931A", icon: BTC_ICON })}
-      <div class="meta"><div class="n">Bitcoin</div><div class="s">BTC · шабакаи дигар (watch)</div></div>
-      <div class="val"><div class="a">0</div><div class="f muted">cross-chain</div></div>
-    </div>`);
-    list.appendChild(btc);
-    totalEl.textContent = fmtSomoni(totalSmn);
+    totalEl.textContent = fmtSmn(totalSmn);
   } catch {
-    list.innerHTML = `<div class="warn">Шабака дастнорас. Дертар кӯшиш кунед.</div>`;
+    list.innerHTML = `<div class="warn">Шабака дастнорас. Поён кашед, то нав кунед.</div>`;
     totalEl.textContent = "—";
   }
 }

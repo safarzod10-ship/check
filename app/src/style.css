@@ -199,3 +199,42 @@ a { color: var(--cyan); }
 @keyframes toastIn { to { opacity:1; transform: translateX(-50%) translateY(0); } }
 @keyframes toastOut { to { opacity:0; transform: translateX(-50%) translateY(20px); } }
 .swap-arrow { width:40px; height:40px; margin: -4px auto; border-radius:50%; background: linear-gradient(135deg, rgba(24,224,138,.2), rgba(53,228,255,.15)); border:1px solid var(--glass-brd); display:grid; place-items:center; color:var(--cyan); font-size:18px; }
+
+/* ================= Home (wallet) redesign ================= */
+.home { position: relative; }
+.home-top { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.home-top .brand img { width:38px; height:38px; }
+.home-top .brand .name { font-size:18px; }
+
+/* pull-to-refresh */
+.ptr { position:absolute; top:-50px; left:0; right:0; display:flex; justify-content:center; align-items:center; height:40px; opacity:0; pointer-events:none; }
+.ptr .spinner { width:24px; height:24px; }
+.ptr.ready .spinner { border-top-color: var(--gold); }
+
+/* balance */
+.balance-block { text-align:center; padding: 18px 0 8px; }
+.balance-block .label { color: var(--muted); font-size: 13px; font-weight:600; letter-spacing:.3px; }
+.balance-block .amount { font-family:"Space Grotesk", sans-serif; font-size: 46px; font-weight:700; margin-top:6px; letter-spacing:.5px; line-height:1.05; background: linear-gradient(180deg,#ffffff,#cfe6da); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
+.addr-chip { display:inline-flex; align-items:center; gap:8px; margin-top:12px; background: var(--glass); border:1px solid var(--glass-brd); padding:8px 14px; border-radius:999px; font-family:"Space Grotesk", ui-monospace, monospace; font-size:12.5px; color:#cdd8f0; cursor:pointer; backdrop-filter: blur(10px); transition: background .2s, transform .12s; }
+.addr-chip:active { transform: scale(.96); background: rgba(255,255,255,.08); }
+.addr-chip .copy-ic { opacity:.65; font-size:14px; }
+
+/* circular action buttons */
+.act-row { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin: 14px 0 6px; }
+.act { display:flex; flex-direction:column; align-items:center; gap:9px; cursor:pointer; animation: pop .5s both; }
+.act:nth-child(1){animation-delay:.04s}.act:nth-child(2){animation-delay:.09s}.act:nth-child(3){animation-delay:.14s}.act:nth-child(4){animation-delay:.19s}
+.act-ic { width:60px; height:60px; border-radius:22px; display:grid; place-items:center; font-size:24px; font-weight:700; color:#eafff5;
+  background: linear-gradient(145deg, rgba(34,240,143,.26), rgba(53,228,255,.14) 70%, rgba(124,92,255,.14));
+  border:1px solid rgba(255,255,255,.12); box-shadow: 0 10px 26px rgba(0,0,0,.34), inset 0 1px 0 rgba(255,255,255,.14);
+  transition: transform .14s cubic-bezier(.22,1,.36,1), filter .2s; }
+.act:active .act-ic { transform: translateY(3px) scale(.93); filter: brightness(1.15); }
+.act-t { font-size:12px; color: var(--text); font-weight:600; opacity:.85; }
+
+/* asset rows: price + 24h change */
+.asset .s { display:flex; align-items:center; gap:8px; margin-top:3px; }
+.asset .s .px { color:#aeb9d6; font-weight:600; }
+.chg { font-size:11px; font-weight:700; padding:1.5px 6px; border-radius:7px; white-space:nowrap; }
+.chg.up { color:#27e39b; background: rgba(39,227,155,.13); }
+.chg.down { color:#ff5e7a; background: rgba(255,94,122,.13); }
+.coin-img { width:46px; height:46px; }
+.asset .val .a { font-size:15.5px; }
