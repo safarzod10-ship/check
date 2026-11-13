@@ -72,6 +72,22 @@ function client(net: Net) {
   return new TonClient({ endpoint: ENDPOINTS[net] });
 }
 
+// Public toncenter is rate-limited (HTTP 429). Retry with backoff so a
+// transient limit never shows up as a false "0" balance.
+async function withRetry<T>(fn: () => Promise<T>, tries = 5, base = 700): Promise<T> {
+  let last: unknown;
+  for (let i = 0; i < tries; i++) {
+    try { return await fn(); }
+    catch (e) {
+      last = e;
+      await new Promise((r) => setTimeout(r, base * (i + 1)));
+    }
+  }
+  throw last;
+}
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
 export async function createAccount(): Promise<Account> {
   const mnemonic = await mnemonicNew(24);
   return accountFromMnemonic(mnemonic);
@@ -101,7 +117,7 @@ export function fmtAddress(addr: string, head = 6, tail = 6): string {
 export async function getTonBalance(net: Net, address: string): Promise<string> {
   try {
     const c = client(net);
-    const bal = await c.getBalance(Address.parse(address));
+    const bal = await withRetry(() => c.getBalance(Address.parse(address)));
     return fromNano(bal);
   } catch {
     return "0";
@@ -112,7 +128,7 @@ async function jettonWalletAddress(net: Net, master: string, owner: string): Pro
   try {
     const c = client(net);
     const jm = c.open(JettonMaster.create(Address.parse(master)));
-    return await jm.getWalletAddress(Address.parse(owner));
+    return await withRetry(() => jm.getWalletAddress(Address.parse(owner)));
   } catch {
     return null;
   }
@@ -126,7 +142,7 @@ export async function getJettonBalance(net: Net, def: JettonDef, owner: string):
     if (!jwAddr) return "0";
     const c = client(net);
     const jw = c.open(JettonWallet.create(jwAddr));
-    const bal = await jw.getBalance();
+    const bal = await withRetry(() => jw.getBalance());
     return scaleDown(bal, def.decimals);
   } catch {
     return "0";
@@ -154,6 +170,7 @@ export async function loadAssets(net: Net, address: string): Promise<AssetBalanc
     { id: "ton", name: "Toncoin", symbol: "TON", color: "#0098EA", icon: TON_ICON, amount: ton, decimals: 9 },
   ];
   for (const j of JETTONS) {
+    await sleep(350); // ease off the public rate limit
     const amt = await getJettonBalance(net, j, address);
     out.push({ id: j.id, name: j.name, symbol: j.symbol, color: j.color, icon: j.icon, amount: amt, decimals: j.decimals });
   }
