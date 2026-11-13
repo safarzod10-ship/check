@@ -17,8 +17,13 @@ export interface JettonDef {
   symbol: string;
   decimals: number;
   color: string;
+  icon: string;
   master: Partial<Record<Net, string>>;
 }
+
+// Native TON icon (official token image, loaded at runtime like a real wallet)
+export const TON_ICON = "https://assets.coingecko.com/coins/images/17980/small/ton_symbol.png";
+export const BTC_ICON = "https://cdn.jsdelivr.net/gh/spothq/cryptocurrency-icons/svg/color/btc.svg";
 
 export const JETTONS: JettonDef[] = [
   {
@@ -27,6 +32,7 @@ export const JETTONS: JettonDef[] = [
     symbol: "USDT",
     decimals: 6,
     color: "#26A17B",
+    icon: "https://cdn.jsdelivr.net/gh/spothq/cryptocurrency-icons/svg/color/usdt.svg",
     master: {
       mainnet: "EQCxE6mUtQJKFnGfaROTKOt1lZbDiiX1kCixRv7Nw2Id_sDs",
       // set your testnet USDT jetton master here if you deploy a test one
@@ -38,6 +44,7 @@ export const JETTONS: JettonDef[] = [
     symbol: "SOMONI",
     decimals: 9,
     color: "#C98A12",
+    icon: "./logo.svg", // our own original token logo
     master: {
       // Filled in after you run scripts/deploy-somoni.ts (prints the master address)
     },
@@ -55,6 +62,7 @@ export interface AssetBalance {
   name: string;
   symbol: string;
   color: string;
+  icon: string;
   amount: string;          // human readable
   decimals: number;
 }
@@ -142,11 +150,11 @@ function scaleUp(human: string, decimals: number): bigint {
 export async function loadAssets(net: Net, address: string): Promise<AssetBalance[]> {
   const ton = await getTonBalance(net, address);
   const out: AssetBalance[] = [
-    { id: "ton", name: "Toncoin", symbol: "TON", color: "#0098EA", amount: ton, decimals: 9 },
+    { id: "ton", name: "Toncoin", symbol: "TON", color: "#0098EA", icon: TON_ICON, amount: ton, decimals: 9 },
   ];
   for (const j of JETTONS) {
     const amt = await getJettonBalance(net, j, address);
-    out.push({ id: j.id, name: j.name, symbol: j.symbol, color: j.color, amount: amt, decimals: j.decimals });
+    out.push({ id: j.id, name: j.name, symbol: j.symbol, color: j.color, icon: j.icon, amount: amt, decimals: j.decimals });
   }
   return out;
 }

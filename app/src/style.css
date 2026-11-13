@@ -135,8 +135,9 @@ h2 { font-size: 20px; margin: 0; font-weight: 700; }
 .asset:hover { transform: translateX(3px); border-color: rgba(255,255,255,.18); background: rgba(255,255,255,.04); }
 @keyframes slideIn { from { opacity:0; transform: translateX(-10px); } to { opacity:1; transform:none; } }
 .list .asset:nth-child(1){animation-delay:.04s}.list .asset:nth-child(2){animation-delay:.1s}.list .asset:nth-child(3){animation-delay:.16s}.list .asset:nth-child(4){animation-delay:.22s}.list .asset:nth-child(5){animation-delay:.28s}
-.asset .sym { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: 15px; color:#fff; position: relative; box-shadow: 0 6px 18px rgba(0,0,0,.35); }
-.asset .sym::after { content:""; position:absolute; inset:0; border-radius:50%; box-shadow: 0 0 0 1px rgba(255,255,255,.18) inset; }
+.asset .sym { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: 15px; color:#fff; position: relative; box-shadow: 0 6px 18px rgba(0,0,0,.35); flex-shrink: 0; }
+.asset .sym::after { content:""; position:absolute; inset:0; border-radius:50%; box-shadow: 0 0 0 1px rgba(255,255,255,.18) inset; pointer-events: none; }
+.coin-img { object-fit: cover; background: radial-gradient(circle at 50% 40%, #1a2440, #0c1222); padding: 0; animation: pop .45s both; }
 .asset .meta { flex: 1; }
 .asset .meta .n { font-weight: 700; font-size: 15px; }
 .asset .meta .s { color: var(--muted); font-size: 12px; margin-top: 2px; }

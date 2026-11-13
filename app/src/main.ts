@@ -2,7 +2,7 @@ import "./style.css";
 import QRCode from "qrcode";
 import {
   createAccount, importAccount, loadAssets, sendTon, sendJetton,
-  fmtAddress, JETTONS, type Account, type AssetBalance, type Net,
+  fmtAddress, JETTONS, BTC_ICON, type Account, type AssetBalance, type Net,
 } from "./ton";
 import {
   saveVault, hasVault, unlock, wipe, vaultAddress, getSettings, setSettings,
@@ -181,11 +181,26 @@ function ScreenLock(): HTMLElement {
 }
 
 // ---------------- Main app ----------------
-const PRICES: Record<string, number> = { TON: 5.3, USDT: 1, SOMONI: 1, BTC: 92000 }; // demo reference prices (USD)
+// Reference rates expressed in Tajik somoni (смн). Approximate — demo only.
+const RATES_SMN: Record<string, number> = { TON: 32.8, USDT: 10.95, SOMONI: 1, BTC: 1_007_400 };
 
-function assetSymbolBadge(a: AssetBalance) {
-  const letter = a.symbol[0];
-  return `<div class="sym" style="background:${a.color}">${esc(letter)}</div>`;
+function fmtSomoni(n: number): string {
+  const s = n.toFixed(2).replace(".", ",");
+  // group thousands with thin spaces
+  const [whole, frac] = s.split(",");
+  const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+  return `${grouped},${frac} смн`;
+}
+
+// Coin icon: loads the token's own published image, with a graceful
+// colored-initial fallback if the network/image is unavailable.
+function assetSymbolBadge(a: { symbol: string; color: string; icon?: string }) {
+  const letter = esc(a.symbol[0]);
+  const fallback = `this.replaceWith(Object.assign(document.createElement('div'),{className:'sym',style:'background:${a.color}',textContent:'${letter}'}))`;
+  if (a.icon) {
+    return `<img class="sym coin-img" src="${esc(a.icon)}" alt="${esc(a.symbol)}" onerror="${fallback}"/>`;
+  }
+  return `<div class="sym" style="background:${a.color}">${letter}</div>`;
 }
 
 function ScreenHome(): HTMLElement {
@@ -233,28 +248,29 @@ async function refreshAssets(scope: HTMLElement) {
   try {
     const assets = await loadAssets(settings.net, session!.address);
     assetsCache = assets;
-    let totalUsd = 0;
+    let totalSmn = 0;
     list.innerHTML = "";
     for (const a of assets) {
-      const px = PRICES[a.symbol] ?? 0;
-      const usd = parseFloat(a.amount) * px;
-      totalUsd += usd;
+      const rate = RATES_SMN[a.symbol] ?? 0;
+      const smn = parseFloat(a.amount) * rate;
+      totalSmn += smn;
+      const notDeployed = a.id === "somoni" && !JETTONS.find(j => j.id === "somoni")!.master[settings.net];
       const row = el(`<div class="asset">
         ${assetSymbolBadge(a)}
-        <div class="meta"><div class="n">${esc(a.name)}</div><div class="s">${esc(a.symbol)}${a.id === "somoni" && !JETTONS.find(j=>j.id==="somoni")!.master[settings.net] ? " · деплой кунед" : ""}</div></div>
-        <div class="val"><div class="a">${esc(a.amount)}</div><div class="f">${usd ? "≈ $" + usd.toFixed(2) : ""}</div></div>
+        <div class="meta"><div class="n">${esc(a.name)}</div><div class="s">${esc(a.symbol)}${notDeployed ? " · деплой кунед" : ""}</div></div>
+        <div class="val"><div class="a">${esc(a.amount)}</div><div class="f">${smn ? "≈ " + fmtSomoni(smn) : ""}</div></div>
       </div>`);
       row.addEventListener("click", () => go({ name: "send", asset: a.id }));
       list.appendChild(row);
     }
-    // BTC cross-chain (watch only)
+    // BTC cross-chain (watch only) — official icon loaded at runtime
     const btc = el(`<div class="asset">
-      <div class="sym" style="background:#F7931A">₿</div>
+      ${assetSymbolBadge({ symbol: "BTC", color: "#F7931A", icon: BTC_ICON })}
       <div class="meta"><div class="n">Bitcoin</div><div class="s">BTC · шабакаи дигар (watch)</div></div>
       <div class="val"><div class="a">0</div><div class="f muted">cross-chain</div></div>
     </div>`);
     list.appendChild(btc);
-    totalEl.textContent = `$${totalUsd.toFixed(2)}`;
+    totalEl.textContent = fmtSomoni(totalSmn);
   } catch {
     list.innerHTML = `<div class="warn">Шабака дастнорас. Дертар кӯшиш кунед.</div>`;
     totalEl.textContent = "—";
