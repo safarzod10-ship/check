@@ -19,3 +19,6 @@ app/screenshots/
 # misc
 .DS_Store
 *.log
+
+# deployer secret (testnet)
+app/scripts/.deployer.testnet.json
