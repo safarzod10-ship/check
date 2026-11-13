@@ -278,3 +278,35 @@ a { color: var(--cyan); }
 .btn-link { background:none; border:none; font-family:inherit; font-size:14px; font-weight:600; cursor:pointer; padding:14px; margin-top: 8px; }
 .btn-link.danger { color: var(--red); opacity:.8; }
 .btn-link.danger:active { opacity: 1; }
+
+/* ================= Asset detail ================= */
+.asset-head { display:flex; align-items:center; gap:14px; }
+.asset-head .sym, .asset-head .coin-img { width:54px; height:54px; }
+.ah-amount .a { font-family:"Space Grotesk", sans-serif; font-size:22px; font-weight:700; }
+.ah-amount .f { color: var(--muted); font-size:13px; margin-top:2px; }
+.chart { width:100%; height:120px; display:block; }
+.chart-empty { height:120px; display:grid; place-items:center; font-size:13px; text-align:center; }
+
+.tx-row { display:flex; align-items:center; gap:12px; padding:12px 14px; background:var(--glass); border:1px solid var(--glass-brd); border-radius:var(--radius-sm); backdrop-filter:blur(10px); cursor:pointer; animation: slideIn .4s both; }
+.tx-row:active { background: rgba(255,255,255,.05); }
+.tx-ic { width:38px; height:38px; border-radius:50%; display:grid; place-items:center; font-size:17px; font-weight:700; flex-shrink:0; }
+.tx-ic.in { background: rgba(39,227,155,.15); color:#27e39b; }
+.tx-ic.out { background: rgba(255,94,122,.14); color:#ff7a90; }
+.tx-meta { flex:1; min-width:0; }
+.tx-meta .n { font-weight:600; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.tx-meta .s { color:var(--muted); font-size:12px; margin-top:2px; font-family:"Space Grotesk", ui-monospace, monospace; }
+.tx-amt { font-weight:700; font-family:"Space Grotesk", sans-serif; font-size:14px; white-space:nowrap; }
+.tx-amt.in { color:#27e39b; }
+.tx-amt.out { color:#ff7a90; }
+
+/* ================= Splash ================= */
+#splash { position: fixed; inset: 0; z-index: 999; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:18px;
+  background: radial-gradient(900px 500px at 50% 35%, #0c1326, #05070d 70%); transition: opacity .5s ease, visibility .5s; }
+#splash.hide { opacity:0; visibility:hidden; }
+#splash img { width:128px; height:128px; border-radius:32px; box-shadow:0 20px 60px rgba(0,0,0,.6); animation: splashPop .7s cubic-bezier(.22,1,.36,1), floaty 4s ease-in-out .7s infinite; }
+#splash .st { font-family:"Space Grotesk", sans-serif; font-weight:700; font-size:22px; letter-spacing:3px; color:#fff; opacity:0; animation: fadeUp .6s .35s forwards; }
+#splash .sbar { width:120px; height:3px; border-radius:3px; background:rgba(255,255,255,.12); overflow:hidden; }
+#splash .sbar i { display:block; height:100%; width:40%; border-radius:3px; background:linear-gradient(90deg,var(--green),var(--cyan)); animation: load 1.1s ease-in-out infinite; }
+@keyframes splashPop { from { transform:scale(.6); opacity:0; } to { transform:scale(1); opacity:1; } }
+@keyframes fadeUp { from { opacity:0; transform:translateY(8px);} to { opacity:1; transform:none; } }
+@keyframes load { 0%{transform:translateX(-120%)} 100%{transform:translateX(320%)} }

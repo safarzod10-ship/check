@@ -234,4 +234,50 @@ export async function sendJetton(
   });
 }
 
+export interface TxItem {
+  dir: "in" | "out";
+  amount: string;   // TON
+  peer: string;     // counterparty address (raw/friendly)
+  comment: string;
+  time: number;     // unix seconds
+  hash: string;
+}
+
+const API_BASE: Record<Net, string> = {
+  testnet: "https://testnet.toncenter.com/api/v2",
+  mainnet: "https://toncenter.com/api/v2",
+};
+
+// Recent TON account transactions (incoming/outgoing), parsed for the UI.
+export async function getTransactions(net: Net, address: string, limit = 20): Promise<TxItem[]> {
+  try {
+    const url = `${API_BASE[net]}/getTransactions?address=${encodeURIComponent(address)}&limit=${limit}&archival=false`;
+    const j = await withRetry(async () => {
+      const r = await fetch(url);
+      if (!r.ok) throw new Error(String(r.status));
+      return r.json();
+    });
+    if (!j.ok || !Array.isArray(j.result)) return [];
+    const out: TxItem[] = [];
+    for (const tx of j.result) {
+      const time = tx.utime || 0;
+      const hash = tx.transaction_id?.hash || "";
+      const inMsg = tx.in_msg;
+      const inVal = inMsg ? Number(inMsg.value || 0) : 0;
+      if (inMsg && inMsg.source && inVal > 0) {
+        out.push({ dir: "in", amount: (inVal / 1e9).toString(), peer: inMsg.source, comment: inMsg.message || "", time, hash });
+      }
+      for (const m of tx.out_msgs || []) {
+        const v = Number(m.value || 0);
+        if (v > 0 && m.destination) {
+          out.push({ dir: "out", amount: (v / 1e9).toString(), peer: m.destination, comment: m.message || "", time, hash });
+        }
+      }
+    }
+    return out;
+  } catch {
+    return [];
+  }
+}
+
 export { toNano, fromNano };

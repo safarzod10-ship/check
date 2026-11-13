@@ -1,13 +1,13 @@
 import "./style.css";
 import QRCode from "qrcode";
 import {
-  createAccount, importAccount, loadAssets, sendTon, sendJetton,
-  fmtAddress, JETTONS, BTC_ICON, type Account, type AssetBalance, type Net,
+  createAccount, importAccount, loadAssets, sendTon, sendJetton, getTransactions,
+  fmtAddress, JETTONS, BTC_ICON, type Account, type AssetBalance, type Net, type TxItem,
 } from "./ton";
 import {
   saveVault, hasVault, unlock, wipe, vaultAddress, getSettings, setSettings,
 } from "./storage";
-import { fetchPrices, fmtSmn, type PriceInfo } from "./prices";
+import { fetchPrices, fetchChart, fmtSmn, type PriceInfo } from "./prices";
 
 const app = document.getElementById("app")!;
 
@@ -43,7 +43,8 @@ function netBadge() {
 type Route =
   | { name: "welcome" } | { name: "create" } | { name: "backup" } | { name: "setpin" }
   | { name: "import" } | { name: "lock" } | { name: "home" } | { name: "receive" }
-  | { name: "send"; asset?: string } | { name: "buy" } | { name: "settings" };
+  | { name: "send"; asset?: string } | { name: "buy" } | { name: "settings" }
+  | { name: "asset"; asset: string };
 
 function go(r: Route) { render(r); }
 
@@ -61,6 +62,7 @@ function render(r: Route) {
     case "send": return app.appendChild(ScreenSend(r.asset));
     case "buy": return app.appendChild(ScreenBuy());
     case "settings": return app.appendChild(ScreenSettings());
+    case "asset": return app.appendChild(ScreenAsset(r.asset));
   }
 }
 
@@ -364,7 +366,7 @@ async function refreshAssets(scope: HTMLElement) {
         <div class="meta"><div class="n">${esc(a.name)}</div><div class="s">${sub}</div></div>
         <div class="val"><div class="a">${esc(a.amount)}</div>${valueLine}</div>
       </div>`);
-      if (!a.watch) row.addEventListener("click", () => go({ name: "send", asset: a.id }));
+      if (!a.watch) row.addEventListener("click", () => go({ name: "asset", asset: a.id }));
       list.appendChild(row);
     }
     totalEl.textContent = fmtSmn(totalSmn);
@@ -372,6 +374,127 @@ async function refreshAssets(scope: HTMLElement) {
     list.innerHTML = `<div class="warn">Шабака дастнорас. Поён кашед, то нав кунед.</div>`;
     totalEl.textContent = "—";
   }
+}
+
+// Simple SVG line chart from a price series.
+function lineChart(points: number[], up: boolean): string {
+  if (!points || points.length < 2) return `<div class="chart-empty muted">Маълумоти график нест</div>`;
+  const w = 320, h = 120, pad = 6;
+  const min = Math.min(...points), max = Math.max(...points);
+  const range = (max - min) || 1;
+  const stepX = (w - pad * 2) / (points.length - 1);
+  const coords = points.map((p, i) => [pad + i * stepX, h - pad - ((p - min) / range) * (h - pad * 2)]);
+  const d = coords.map((c, i) => (i ? "L" : "M") + c[0].toFixed(1) + " " + c[1].toFixed(1)).join(" ");
+  const area = `${d} L ${w - pad} ${h - pad} L ${pad} ${h - pad} Z`;
+  const color = up ? "#27e39b" : "#ff5e7a";
+  const id = "cg" + Math.random().toString(36).slice(2, 7);
+  return `<svg viewBox="0 0 ${w} ${h}" class="chart" preserveAspectRatio="none">
+    <defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="${color}" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="${color}" stop-opacity="0"/>
+    </linearGradient></defs>
+    <path d="${area}" fill="url(#${id})"/>
+    <path d="${d}" fill="none" stroke="${color}" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>
+  </svg>`;
+}
+
+// Show a transaction comment only when it is human-readable text (not binary/base64).
+function cleanComment(c: string): string {
+  if (!c) return "";
+  const s = c.trim();
+  if (!s || /=\s*$/.test(s)) return "";
+  const weird = s.replace(/[\p{L}\p{N}\s.,!?@#%:;*()/_+\-]/gu, "");
+  if (weird.length > 0) return "";
+  return s.slice(0, 18);
+}
+
+function timeAgo(sec: number): string {
+  const diff = Math.max(0, Date.now() / 1000 - sec);
+  if (diff < 60) return "ҳозир";
+  if (diff < 3600) return `${Math.floor(diff / 60)} дақ пеш`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)} соат пеш`;
+  return `${Math.floor(diff / 86400)} рӯз пеш`;
+}
+
+function ScreenAsset(assetId: string): HTMLElement {
+  const a = assetsCache.find((x) => x.id === assetId)
+    || { id: assetId, name: assetId, symbol: assetId.toUpperCase(), color: "#888", icon: "", amount: "0", decimals: 9 };
+  const explorer = settings.net === "testnet" ? "https://testnet.tonviewer.com" : "https://tonviewer.com";
+  const s = el(`<div class="screen">
+    <div class="topbar"><div class="back" id="back">‹</div><h2>${esc(a.name)}</h2></div>
+
+    <div class="card asset-head">
+      ${assetSymbolBadge(a)}
+      <div class="ah-amount"><div class="a" id="bal">${esc(a.amount)} ${esc(a.symbol)}</div>
+        <div class="f" id="val">—</div></div>
+    </div>
+
+    <div class="card">
+      <div class="row-between" style="margin-bottom:8px">
+        <div><div class="muted" style="font-size:12px">Нарх</div><div id="price" style="font-weight:700;font-family:'Space Grotesk'">—</div></div>
+        <div id="chg"></div>
+      </div>
+      <div id="chart"><div class="chart-empty muted"><span class="spinner"></span></div></div>
+      <div class="muted" style="font-size:11px;text-align:right;margin-top:4px">7 рӯзи охир</div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-primary" id="send">↑ Ирсол</button>
+      <button class="btn btn-ghost" id="recv">↓ Қабул</button>
+    </div>
+
+    <div class="section-title">Амалиёти охир</div>
+    <div class="list" id="tx"><div class="muted" style="padding:10px 4px"><span class="spinner"></span> Боркунӣ…</div></div>
+  </div>`);
+
+  s.querySelector("#back")!.addEventListener("click", () => go({ name: "home" }));
+  s.querySelector("#send")!.addEventListener("click", () => go({ name: "send", asset: assetId }));
+  s.querySelector("#recv")!.addEventListener("click", () => go({ name: "receive" }));
+
+  // prices + value + chart
+  (async () => {
+    const prices = await fetchPrices();
+    const p = prices[a.symbol];
+    if (p) {
+      (s.querySelector("#price") as HTMLElement).textContent = fmtSmn(p.smn, p.smn < 1 ? 4 : 2);
+      (s.querySelector("#chg") as HTMLElement).innerHTML = changeHtml(p.change24);
+      const smn = parseFloat(a.amount) * p.smn;
+      (s.querySelector("#val") as HTMLElement).textContent = smn ? "≈ " + fmtSmn(smn) : "";
+    }
+    const chartEl = s.querySelector("#chart") as HTMLElement;
+    if (a.symbol === "SOMONI") {
+      chartEl.innerHTML = `<div class="chart-empty muted">SOMONI — курс устувор: 1,00 смн</div>`;
+    } else {
+      const series = await fetchChart(a.symbol, 7);
+      chartEl.innerHTML = lineChart(series, (p?.change24 ?? 0) >= 0);
+    }
+  })();
+
+  // transaction history (account level, TON)
+  (async () => {
+    const txs = await getTransactions(settings.net, session!.address, 20);
+    const list = s.querySelector("#tx") as HTMLElement;
+    if (!txs.length) { list.innerHTML = `<div class="muted" style="padding:10px 4px">Амалиёт нест</div>`; return; }
+    list.innerHTML = "";
+    for (const t of txs.slice(0, 15)) {
+      const inc = t.dir === "in";
+      const amt = parseFloat(t.amount);
+      const cmt = cleanComment(t.comment);
+      const row = el(`<div class="tx-row">
+        <div class="tx-ic ${inc ? "in" : "out"}">${inc ? "↓" : "↑"}</div>
+        <div class="tx-meta"><div class="n">${inc ? "Қабул" : "Ирсол"}${cmt ? ' · ' + esc(cmt) : ""}</div>
+          <div class="s">${esc(fmtAddress(t.peer, 6, 4))} · ${timeAgo(t.time)}</div></div>
+        <div class="tx-amt ${inc ? "in" : "out"}">${inc ? "+" : "−"}${amt.toFixed(amt < 1 ? 4 : 2)} TON</div>
+      </div>`);
+      row.addEventListener("click", () => window.open(`${explorer}/transaction/${t.hash}`, "_blank"));
+      list.appendChild(row);
+    }
+    const note = el(`<div class="muted" style="font-size:11px;padding:6px 4px">Таърих — амалиёти TON-и ҳамён. Барои тафсилот explorer-ро кушоед.</div>`);
+    list.appendChild(note);
+  })();
+
+  s.appendChild(TabBar("home"));
+  return s;
 }
 
 function ScreenReceive(): HTMLElement {
@@ -443,18 +566,34 @@ function ScreenBuy(): HTMLElement {
       <label class="field"><div class="lbl">Пардохт</div>
         <select id="from"><option value="TON">TON</option><option value="USDT">USDT</option></select></label>
       <div class="swap-arrow">⇅</div>
-      <label class="field"><div class="lbl">Мегиред</div>
-        <input id="get" value="SOMONI" disabled/></label>
+      <label class="field"><div class="lbl">Мегиред (SOMONI)</div>
+        <input id="get" value="0" disabled/></label>
       <label class="field"><div class="lbl">Миқдор</div><input id="amt" inputmode="decimal" placeholder="0.0"/></label>
-      <div class="muted" id="quote" style="font-size:13px">Қурби тахминӣ: 1 USDT ≈ 1 SOMONI</div>
-      <button class="btn btn-gold" id="swap">Иваз кардан (своп)</button>
+      <div class="muted" id="rate" style="font-size:13px">Қурби бозорӣ боркунӣ…</div>
+      <button class="btn btn-gold" id="swap">Ҳисоб кардан</button>
     </div>
-    <p class="lead">Своп тавассути DEX-и TON (масалан STON.fi/DeDust) иҷро мешавад. Пас аз деплойи SOMONI jetton ва ҷуфти ликвидӣ фаъол мегардад.</p>
+    <div class="warn" style="background:rgba(53,228,255,.08);border-color:rgba(53,228,255,.3);color:#cdefff">
+      Своп дар шабака пас аз сохтани <b>пули ликвидӣ</b> (STON.fi/DeDust) фаъол мешавад. Ҳоло ин ҳисобкунаки қурб аст.
+    </div>
   </div>`);
+  let prices: Record<string, PriceInfo> = {};
+  const rateEl = s.querySelector("#rate") as HTMLElement;
+  const getEl = s.querySelector("#get") as HTMLInputElement;
+  const amtEl = s.querySelector("#amt") as HTMLInputElement;
+  const fromEl = s.querySelector("#from") as HTMLSelectElement;
+  const recalc = () => {
+    const from = fromEl.value;
+    const px = prices[from]?.smn ?? 0; // смн per 1 unit; 1 SOMONI = 1 смн
+    const amt = parseFloat(amtEl.value.replace(",", ".")) || 0;
+    const out = amt * px;
+    getEl.value = out ? out.toLocaleString("ru-RU", { maximumFractionDigits: 2 }) : "0";
+    if (px) rateEl.textContent = `Қурби бозорӣ: 1 ${from} ≈ ${px.toLocaleString("ru-RU", { maximumFractionDigits: 2 })} SOMONI`;
+  };
+  (async () => { prices = await fetchPrices(); recalc(); })();
+  fromEl.addEventListener("change", recalc);
+  amtEl.addEventListener("input", recalc);
   s.querySelector("#back")!.addEventListener("click", () => go({ name: "home" }));
-  s.querySelector("#swap")!.addEventListener("click", () => {
-    toast("Своп фаъол мешавад пас аз насби SOMONI ва ликвидият");
-  });
+  s.querySelector("#swap")!.addEventListener("click", () => { recalc(); toast("Ҳисоб шуд. Своп фаъол мешавад пас аз пули ликвидӣ."); });
   s.appendChild(TabBar("home"));
   return s;
 }
@@ -507,5 +646,12 @@ function TabBar(active: string): HTMLElement {
 function boot() {
   if (hasVault()) go({ name: "lock" });
   else go({ name: "welcome" });
+  // dismiss the splash once the first screen is painted
+  const splash = document.getElementById("splash");
+  if (splash) {
+    const hide = () => splash.classList.add("hide");
+    setTimeout(hide, 1100);
+    setTimeout(() => splash.remove(), 1700);
+  }
 }
 boot();

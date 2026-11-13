@@ -42,3 +42,30 @@ export function fmtSmn(n: number, digits = 2): string {
   const s = n.toLocaleString("ru-RU", { minimumFractionDigits: digits, maximumFractionDigits: digits });
   return `${s} смн`;
 }
+
+// CoinGecko ids for assets that have a market
+export const CG_ID: Record<string, string> = {
+  TON: "the-open-network",
+  BTC: "bitcoin",
+  USDT: "tether",
+};
+
+const chartCache: Record<string, { ts: number; pts: number[] }> = {};
+
+// 7-day price series (USD) for a symbol; returns [] if no market (e.g. SOMONI).
+export async function fetchChart(symbol: string, days = 7): Promise<number[]> {
+  const id = CG_ID[symbol];
+  if (!id) return [];
+  const key = `${id}:${days}`;
+  const c = chartCache[key];
+  if (c && Date.now() - c.ts < 120_000) return c.pts;
+  try {
+    const r = await fetch(`https://api.coingecko.com/api/v3/coins/${id}/market_chart?vs_currency=usd&days=${days}`);
+    const j = await r.json();
+    const pts: number[] = (j.prices || []).map((p: [number, number]) => p[1]);
+    chartCache[key] = { ts: Date.now(), pts };
+    return pts;
+  } catch {
+    return c?.pts ?? [];
+  }
+}
