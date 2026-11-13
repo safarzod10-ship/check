@@ -35,9 +35,9 @@ if (bal < toNano("0.4")) {
   process.exit(2);
 }
 
-// --- deploy ---
-const api = await createApi(NETWORK);
-const sender = await createSender("highload-v2", key, NETWORK);
+// --- deploy (use toncenter directly; avoids the orbs access network) ---
+const api = client; // TonClient implements the TonClientApi interface (open/provider)
+const sender = await createSender("highload-v2", key, client);
 const sdk = AssetsSDK.create({ api, storage: new NoopStorage(), sender });
 
 const imageData = readFileSync("scripts/token-logo-128.png");

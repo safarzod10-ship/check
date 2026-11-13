@@ -46,7 +46,8 @@ export const JETTONS: JettonDef[] = [
     color: "#C98A12",
     icon: "./logo.svg", // our own original token logo
     master: {
-      // Filled in after you run scripts/deploy-somoni.ts (prints the master address)
+      testnet: "kQAFnmFcJaOWjBuggPb3W1g9udA2R2JsAjScMDNO52kqMRki",
+      // mainnet master goes here after a mainnet deploy
     },
   },
 ];
