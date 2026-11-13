@@ -1,0 +1,14 @@
+.gradle/
+build/
+local.properties
+keystore.properties
+*.jks
+*.keystore
+.idea/
+*.iml
+.kotlin/
+captures/
+supabase/.temp/
+supabase/.branches/
+node_modules/
+google-services.json
