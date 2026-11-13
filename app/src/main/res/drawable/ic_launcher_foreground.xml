@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Знак PAYVAND: буква P и лента цветов флага Таджикистана. Область знака 28..80 (безопасная зона). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android" xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+    <path android:pathData="M41,31 H58 A11.5,11.5 0 0 1 58,54 H50" android:strokeWidth="7.6" android:strokeLineCap="round" android:strokeLineJoin="round">
+        <aapt:attr name="android:strokeColor">
+            <gradient android:type="linear" android:startX="36" android:startY="30" android:endX="76" android:endY="62">
+                <item android:offset="0" android:color="#FFFFFFFF" />
+                <item android:offset="1" android:color="#FF7CF5C4" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path android:pathData="M41,31 V61" android:strokeWidth="7.6" android:strokeLineCap="round" android:strokeColor="#FFFFFFFF" />
+    <path android:pathData="M31,69.5 C46,71.5 57,66 77,61" android:strokeWidth="3.6" android:strokeLineCap="round" android:strokeColor="#FFE5383B" />
+    <path android:pathData="M31,73.9 C46,75.9 57,70.4 77,65.4" android:strokeWidth="3.6" android:strokeLineCap="round" android:strokeColor="#FFFFFFFF" />
+    <path android:pathData="M31,78.3 C46,80.3 57,74.8 77,69.8" android:strokeWidth="3.6" android:strokeLineCap="round" android:strokeColor="#FF19E28A" />
+</vector>

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.Payvand" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <item name="android:windowBackground">@color/pv_night</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+    <color name="pv_night">#050B09</color>
+    <color name="pv_emerald">#19E28A</color>
+</resources>

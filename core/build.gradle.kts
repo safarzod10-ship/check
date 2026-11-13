@@ -34,3 +34,13 @@ tasks.test {
     testLogging { events("passed", "failed", "skipped") }
     outputs.upToDateWhen { false }
 }
+
+// «Второй пользователь» для ручной проверки приложения, см. PeerTool.kt
+tasks.register<JavaExec>("peer") {
+    group = "verification"
+    classpath = sourceSets["test"].runtimeClasspath
+    mainClass.set("tj.payvand.core.PeerTool")
+    environment("LC_ALL", "C.UTF-8")   // аргументы командной строки в UTF-8 (кириллица)
+    jvmArgs("-Dfile.encoding=UTF-8", "-Dstdout.encoding=UTF-8")
+    systemProperty("http.nonProxyHosts", "localhost|127.0.0.1")
+}

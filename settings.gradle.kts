@@ -13,4 +13,4 @@ dependencyResolutionManagement {
     }
 }
 rootProject.name = "PAYVAND"
-include(":core")
+include(":core", ":app")

@@ -556,19 +556,17 @@ end $$;
 
 -- Получатели push-уведомления для сообщения (вызывается только Edge Function с service_role).
 create or replace function public.push_targets(m uuid)
-returns table (token text, lang text, title text, body text, kind text, conversation_id uuid)
+returns table (token text, lang text, title text, sender text, body text, kind text, direct boolean, conversation_id uuid)
 language sql stable security definer set search_path = public as $$
   select t.token, t.lang,
-         case when c.type = 'direct' then sp.display_name else c.title end,
-         case when c.type = 'direct' or msg.kind = 'system' then msg.body
-              else coalesce(sp.display_name, '') || ': ' || msg.body end,
-         msg.kind, c.id
+         case when c.type = 'direct' then coalesce(sp.display_name, '') else coalesce(c.title, '') end,
+         coalesce(sp.display_name, ''), msg.body, msg.kind, c.type = 'direct', c.id
   from messages msg
   join conversations c on c.id = msg.conversation_id
   join members mb on mb.conversation_id = c.id and mb.user_id is distinct from msg.sender_id
   join device_tokens t on t.user_id = mb.user_id
   left join profiles sp on sp.id = msg.sender_id
-  where msg.id = m and msg.deleted_at is null
+  where msg.id = m and msg.deleted_at is null and msg.kind <> 'system'
     and not exists (select 1 from blocks b where b.blocker_id = mb.user_id and b.blocked_id = msg.sender_id);
 $$;
 
