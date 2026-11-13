@@ -22,3 +22,6 @@ app/screenshots/
 
 # deployer secret (testnet)
 app/scripts/.deployer.testnet.json
+
+# release signing key (keep private, never commit)
+release/
