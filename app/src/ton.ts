@@ -53,10 +53,26 @@ export const JETTONS: JettonDef[] = [
 ];
 
 // SOMORA Treasury: buy SOMONI by sending TON here; owner receives the TON.
-export const TREASURY: Partial<Record<Net, { address: string; rate: number; min: number }>> = {
-  testnet: { address: "kQAcz4dSx33sb4QstskSOUxG-7CFJc-ay6tm_YqVIAMqW6ps", rate: 10, min: 0.2 },
+export const TREASURY: Partial<Record<Net, { address: string; owner: string; rate: number; min: number }>> = {
+  testnet: {
+    address: "kQAcz4dSx33sb4QstskSOUxG-7CFJc-ay6tm_YqVIAMqW6ps",
+    owner: "UQBGDeKNSjaNw_FShJIPHgc6_Wtg1WlLBCJ6DeRydqSop9S7",
+    rate: 10, min: 0.2,
+  },
   // mainnet treasury goes here after a mainnet deploy
 };
+
+// Treasury contract message opcodes (from the compiled ABI)
+const OP_SET_RATE = 3507611872;
+const OP_WITHDRAW_TON = 4206811366;
+
+export function sameAddress(a: string, b: string): boolean {
+  try { return Address.parse(a).equals(Address.parse(b)); } catch { return false; }
+}
+export function isTreasuryOwner(net: Net, address: string): boolean {
+  const t = TREASURY[net];
+  return !!t && sameAddress(t.owner, address);
+}
 
 export interface Account {
   mnemonic: string[];
@@ -284,6 +300,61 @@ export async function getTransactions(net: Net, address: string, limit = 20): Pr
   } catch {
     return [];
   }
+}
+
+// Send an internal message with a custom body from the user's wallet.
+async function sendInternal(net: Net, mnemonic: string[], to: string, valueTon: string, body: any, bounce: boolean): Promise<void> {
+  const c = client(net);
+  const key = await mnemonicToPrivateKey(mnemonic);
+  const wallet = c.open(WalletContractV4.create({ workchain: 0, publicKey: key.publicKey }));
+  const seqno = await withRetry(() => wallet.getSeqno());
+  await wallet.sendTransfer({
+    secretKey: key.secretKey,
+    seqno,
+    messages: [internal({ to: Address.parse(to), value: toNano(valueTon), body, bounce })],
+  });
+}
+
+// Owner: change the SOMONI price (SOMONI per 1 TON).
+export async function treasurySetRate(net: Net, mnemonic: string[], rateSomoniPerTon: string): Promise<void> {
+  const t = TREASURY[net];
+  if (!t) throw new Error("Казначейство дар ин шабака нест");
+  const body = beginCell().storeUint(OP_SET_RATE, 32).storeCoins(toNano(rateSomoniPerTon)).endCell();
+  await sendInternal(net, mnemonic, t.address, "0.05", body, true);
+}
+
+// Owner: withdraw TON from the treasury to the owner address.
+export async function treasuryWithdraw(net: Net, mnemonic: string[], amountTon: string): Promise<void> {
+  const t = TREASURY[net];
+  if (!t) throw new Error("Казначейство дар ин шабака нест");
+  const body = beginCell().storeUint(OP_WITHDRAW_TON, 32).storeCoins(toNano(amountTon)).endCell();
+  await sendInternal(net, mnemonic, t.address, "0.05", body, true);
+}
+
+// Owner: top up SOMONI inventory (send SOMONI from your wallet to the treasury).
+export async function treasuryTopUp(net: Net, mnemonic: string[], somoniAmount: string): Promise<void> {
+  const t = TREASURY[net];
+  if (!t) throw new Error("Казначейство дар ин шабака нест");
+  const def = JETTONS.find((j) => j.id === "somoni")!;
+  await sendJetton(net, def, mnemonic, t.address, somoniAmount);
+}
+
+export interface TreasuryInfo { ton: string; somoni: string; rate: number }
+export async function getTreasuryInfo(net: Net): Promise<TreasuryInfo | null> {
+  const t = TREASURY[net];
+  if (!t) return null;
+  const c = client(net);
+  const addr = Address.parse(t.address);
+  let ton = "0", somoni = "0", rate = t.rate;
+  try { ton = fromNano(await withRetry(() => c.getBalance(addr))); } catch {}
+  try { somoni = await getJettonBalance(net, JETTONS.find((j) => j.id === "somoni")!, t.address); } catch {}
+  try {
+    const res = await withRetry(() => c.runMethod(addr, "info"));
+    const tup = res.stack.readTuple();
+    tup.readAddress(); tup.readAddress();
+    rate = Number(tup.readBigNumber()) / 1e9;
+  } catch {}
+  return { ton, somoni, rate };
 }
 
 export { toNano, fromNano };

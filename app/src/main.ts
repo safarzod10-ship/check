@@ -1,8 +1,11 @@
 import "./style.css";
 import QRCode from "qrcode";
+import jsQR from "jsqr";
 import {
   createAccount, importAccount, loadAssets, sendTon, sendJetton, getTransactions,
-  fmtAddress, JETTONS, BTC_ICON, TREASURY, type Account, type AssetBalance, type Net, type TxItem,
+  fmtAddress, JETTONS, BTC_ICON, TREASURY, isTreasuryOwner, getTreasuryInfo,
+  treasurySetRate, treasuryWithdraw, treasuryTopUp,
+  type Account, type AssetBalance, type Net, type TxItem,
 } from "./ton";
 import {
   saveVault, hasVault, unlock, wipe, vaultAddress, getSettings, setSettings,
@@ -30,6 +33,85 @@ function toast(msg: string) {
   setTimeout(() => t.remove(), 2600);
 }
 
+// Parse a scanned QR into a TON address (+ optional amount).
+function parseTonQR(data: string): { address: string; amount?: string } {
+  let d = data.trim();
+  // ton://transfer/<addr>?amount=<nano>
+  const m = d.match(/ton:\/\/transfer\/([A-Za-z0-9_\-]+)(\?.*)?/i);
+  if (m) {
+    const addr = m[1];
+    let amount: string | undefined;
+    const q = m[2] ? new URLSearchParams(m[2].slice(1)) : null;
+    const a = q?.get("amount");
+    if (a && /^\d+$/.test(a)) amount = (Number(a) / 1e9).toString();
+    return { address: addr, amount };
+  }
+  return { address: d };
+}
+
+// Open the camera and scan a QR code; resolves with the decoded string or null.
+function openScanner(): Promise<string | null> {
+  return new Promise(async (resolve) => {
+    let stream: MediaStream | null = null;
+    const ov = el(`<div class="scan-ov">
+      <div class="scan-top"><div style="font-weight:700">Сканкунии QR</div><div class="x" id="sx">✕</div></div>
+      <video id="sv" playsinline muted></video>
+      <div class="scan-frame"><div class="box"></div></div>
+      <div class="scan-hint">QR-и адресро дар чорчӯба нигоҳ доред</div>
+    </div>`);
+    document.body.appendChild(ov);
+    const video = ov.querySelector("#sv") as HTMLVideoElement;
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
+    let raf = 0, done = false;
+    const cleanup = (res: string | null) => {
+      if (done) return; done = true;
+      if (raf) cancelAnimationFrame(raf);
+      if (stream) stream.getTracks().forEach((t) => t.stop());
+      ov.remove(); resolve(res);
+    };
+    ov.querySelector("#sx")!.addEventListener("click", () => cleanup(null));
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+      video.srcObject = stream;
+      await video.play();
+      const tick = () => {
+        if (done) return;
+        if (video.readyState >= 2 && video.videoWidth) {
+          canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const code = jsQR(img.data, img.width, img.height, { inversionAttempts: "dontInvert" });
+          if (code && code.data) { cleanup(code.data.trim()); return; }
+        }
+        raf = requestAnimationFrame(tick);
+      };
+      raf = requestAnimationFrame(tick);
+    } catch {
+      toast("Камера дастрас нест");
+      cleanup(null);
+    }
+  });
+}
+
+// Confirmation modal: returns true if the user confirms.
+function confirmModal(title: string, rows: Array<[string, string]>, cta = "Тасдиқ"): Promise<boolean> {
+  return new Promise((resolve) => {
+    const m = el(`<div class="modal-ov">
+      <div class="modal">
+        <h3>${esc(title)}</h3>
+        <div class="modal-rows">${rows.map(([k, v]) => `<div class="mrow"><span>${esc(k)}</span><b>${esc(v)}</b></div>`).join("")}</div>
+        <div class="btn-row"><button class="btn btn-ghost" id="mc">Бекор</button><button class="btn btn-primary" id="mok">${esc(cta)}</button></div>
+      </div>
+    </div>`);
+    document.body.appendChild(m);
+    const close = (res: boolean) => { m.remove(); resolve(res); };
+    m.querySelector("#mc")!.addEventListener("click", () => close(false));
+    m.querySelector("#mok")!.addEventListener("click", () => close(true));
+    m.addEventListener("click", (e) => { if (e.target === m) close(false); });
+  });
+}
+
 function brandHeader(sub = "Ҳамёни рақамии Тоҷикистон") {
   return `<div class="brand"><img src="./brand-logo.png" alt=""/><div><div class="name">SOMORA</div><div class="sub">${esc(sub)}</div></div></div>`;
 }
@@ -44,9 +126,25 @@ type Route =
   | { name: "welcome" } | { name: "create" } | { name: "backup" } | { name: "setpin" }
   | { name: "import" } | { name: "lock" } | { name: "home" } | { name: "receive" }
   | { name: "send"; asset?: string } | { name: "buy" } | { name: "settings" }
-  | { name: "asset"; asset: string };
+  | { name: "asset"; asset: string } | { name: "treasury" };
 
-function go(r: Route) { render(r); }
+// ---- auto-lock after inactivity ----
+let idleTimer: ReturnType<typeof setTimeout> | null = null;
+const AUTO_LOCK_MS = 180000; // 3 minutes
+function resetIdle() {
+  if (!session) return;
+  if (idleTimer) clearTimeout(idleTimer);
+  idleTimer = setTimeout(() => {
+    if (session && hasVault()) { session = null; go({ name: "lock" }); }
+  }, AUTO_LOCK_MS);
+}
+["touchstart", "click", "keydown"].forEach((ev) =>
+  document.addEventListener(ev, resetIdle, { passive: true }));
+
+function go(r: Route) {
+  if (r.name !== "lock" && r.name !== "welcome") resetIdle();
+  render(r);
+}
 
 function render(r: Route) {
   app.innerHTML = "";
@@ -63,6 +161,7 @@ function render(r: Route) {
     case "buy": return app.appendChild(ScreenBuy());
     case "settings": return app.appendChild(ScreenSettings());
     case "asset": return app.appendChild(ScreenAsset(r.asset));
+    case "treasury": return app.appendChild(ScreenTreasury());
   }
 }
 
@@ -525,7 +624,7 @@ function ScreenSend(assetId = "ton"): HTMLElement {
   const s = el(`<div class="screen">
     <div class="topbar"><div class="back" id="back">‹</div><h2>Ирсоли маблағ</h2></div>
     <label class="field"><div class="lbl">Дороӣ</div><select id="asset">${options}</select></label>
-    <label class="field"><div class="lbl">Адреси қабулкунанда</div><input id="to" placeholder="EQ… / UQ…"/></label>
+    <label class="field"><div class="lbl">Адреси қабулкунанда</div><div class="field-with-btn"><input id="to" placeholder="EQ… / UQ…"/><div class="scan-btn" id="scan" title="Сканкунии QR">⛶</div></div></label>
     <label class="field"><div class="lbl">Миқдор</div><input id="amt" inputmode="decimal" placeholder="0.0"/></label>
     <label class="field"><div class="lbl">Эзоҳ (ихтиёрӣ)</div><input id="memo" placeholder=""/></label>
     <div class="warn">Амалиёт бебозгашт аст. Адрес ва миқдорро санҷед.</div>
@@ -539,6 +638,15 @@ function ScreenSend(assetId = "ton"): HTMLElement {
     const memo = (s.querySelector("#memo") as HTMLInputElement).value.trim();
     if (!to) return toast("Адресро ворид кунед");
     if (!(parseFloat(amt) > 0)) return toast("Миқдори дуруст ворид кунед");
+    const sym = id === "ton" ? "TON" : (JETTONS.find(j => j.id === id)?.symbol || id.toUpperCase());
+    const ok = await confirmModal("Тасдиқи ирсол", [
+      ["Дороӣ", sym],
+      ["Ба", fmtAddress(to, 8, 8)],
+      ["Миқдор", `${amt} ${sym}`],
+      ["Эзоҳ", memo || "—"],
+      ["Шабака", settings.net],
+    ], "Фиристодан");
+    if (!ok) return;
     const btn = s.querySelector("#send") as HTMLButtonElement;
     btn.disabled = true; btn.innerHTML = `<span class="spinner"></span>`;
     try {
@@ -554,6 +662,14 @@ function ScreenSend(assetId = "ton"): HTMLElement {
       toast(e.message || "Хатогии ирсол");
       btn.disabled = false; btn.textContent = "Фиристодан";
     }
+  });
+  s.querySelector("#scan")!.addEventListener("click", async () => {
+    const data = await openScanner();
+    if (!data) return;
+    const { address, amount } = parseTonQR(data);
+    (s.querySelector("#to") as HTMLInputElement).value = address;
+    if (amount) (s.querySelector("#amt") as HTMLInputElement).value = amount;
+    toast("Адрес аз QR ворид шуд");
   });
   s.appendChild(TabBar("home"));
   return s;
@@ -602,6 +718,78 @@ function ScreenBuy(): HTMLElement {
   return s;
 }
 
+function ScreenTreasury(): HTMLElement {
+  const owner = isTreasuryOwner(settings.net, session!.address);
+  const s = el(`<div class="screen">
+    <div class="topbar"><div class="back" id="back">‹</div><h2>Казначейство</h2></div>
+    ${!owner ? `<div class="warn">Танҳо соҳиби казначейство дастрасӣ дорад.</div>` : `
+    <div class="card">
+      <div class="row-between"><div class="muted" style="font-size:13px">Баланси казна (TON)</div><div id="tbal" style="font-weight:700;font-family:'Space Grotesk'">—</div></div>
+      <div class="row-between" style="margin-top:8px"><div class="muted" style="font-size:13px">Захираи SOMONI</div><div id="tsom" style="font-weight:700;font-family:'Space Grotesk'">—</div></div>
+      <div class="row-between" style="margin-top:8px"><div class="muted" style="font-size:13px">Курс (SOMONI/TON)</div><div id="trate" style="font-weight:700;font-family:'Space Grotesk'">—</div></div>
+    </div>
+
+    <div class="section-title">Иваз кардани курс</div>
+    <div class="card center-col">
+      <label class="field"><div class="lbl">Курси нав (SOMONI барои 1 TON)</div><input id="rate" inputmode="decimal" placeholder="10"/></label>
+      <button class="btn btn-primary" id="setrate">Курсро нав кардан</button>
+    </div>
+
+    <div class="section-title">Бардоштани TON</div>
+    <div class="card center-col">
+      <label class="field"><div class="lbl">Миқдори TON ба ҳамёни шумо</div><input id="wd" inputmode="decimal" placeholder="0.0"/></label>
+      <button class="btn btn-gold" id="withdraw">Бардоштан</button>
+    </div>
+
+    <div class="section-title">Пополнени захираи SOMONI</div>
+    <div class="card center-col">
+      <label class="field"><div class="lbl">Миқдори SOMONI ба казна</div><input id="top" inputmode="decimal" placeholder="0"/></label>
+      <button class="btn btn-ghost" id="topup">Илова кардан</button>
+    </div>
+    <p class="lead" style="font-size:12px">Ҳамаи амалиётро шумо ҳамчун соҳиб имзо мекунед. Шабака: ${settings.net}.</p>
+    `}
+  </div>`);
+  s.querySelector("#back")!.addEventListener("click", () => go({ name: "settings" }));
+  if (!owner) { s.appendChild(TabBar("settings")); return s; }
+
+  const refresh = async () => {
+    const info = await getTreasuryInfo(settings.net);
+    if (!info) return;
+    (s.querySelector("#tbal") as HTMLElement).textContent = parseFloat(info.ton).toFixed(3) + " TON";
+    (s.querySelector("#tsom") as HTMLElement).textContent = parseFloat(info.somoni).toLocaleString("ru-RU");
+    (s.querySelector("#trate") as HTMLElement).textContent = String(info.rate);
+  };
+  refresh();
+
+  const run = async (btnSel: string, fn: () => Promise<void>, okMsg: string) => {
+    const btn = s.querySelector(btnSel) as HTMLButtonElement;
+    const txt = btn.textContent;
+    btn.disabled = true; btn.innerHTML = `<span class="spinner"></span>`;
+    try { await fn(); toast(okMsg); setTimeout(refresh, 6000); }
+    catch (e: any) { toast(e.message || "Хатогӣ"); }
+    finally { btn.disabled = false; btn.textContent = txt; }
+  };
+
+  s.querySelector("#setrate")!.addEventListener("click", () => {
+    const v = (s.querySelector("#rate") as HTMLInputElement).value.trim().replace(",", ".");
+    if (!(parseFloat(v) > 0)) return toast("Курси дуруст ворид кунед");
+    run("#setrate", () => treasurySetRate(settings.net, session!.mnemonic, v), "Курс нав шуд ✓");
+  });
+  s.querySelector("#withdraw")!.addEventListener("click", () => {
+    const v = (s.querySelector("#wd") as HTMLInputElement).value.trim().replace(",", ".");
+    if (!(parseFloat(v) > 0)) return toast("Миқдори дуруст ворид кунед");
+    run("#withdraw", () => treasuryWithdraw(settings.net, session!.mnemonic, v), "Бардошта шуд ✓");
+  });
+  s.querySelector("#topup")!.addEventListener("click", () => {
+    const v = (s.querySelector("#top") as HTMLInputElement).value.trim().replace(",", ".");
+    if (!(parseFloat(v) > 0)) return toast("Миқдори дуруст ворид кунед");
+    run("#topup", () => treasuryTopUp(settings.net, session!.mnemonic, v), "Илова шуд ✓");
+  });
+
+  s.appendChild(TabBar("settings"));
+  return s;
+}
+
 function ScreenSettings(): HTMLElement {
   const s = el(`<div class="screen">
     <div class="topbar"><div class="back" id="back">‹</div><h2>Танзимот</h2></div>
@@ -616,6 +804,7 @@ function ScreenSettings(): HTMLElement {
       <div class="row-between"><div class="n" style="font-weight:700">Адреси ҳамён</div></div>
       <div class="mono" style="margin-top:8px">${esc(session?.address || vaultAddress() || "")}</div>
     </div>
+    ${isTreasuryOwner(settings.net, session?.address || "") ? `<button class="btn btn-primary" id="treasury">⚙ Идоракунии казначейство</button>` : ""}
     <button class="btn btn-ghost" id="lock">Қулф кардан</button>
     <button class="btn btn-danger" id="wipe">Нест кардани ҳамён аз дастгоҳ</button>
     <p class="lead" style="font-size:12px">SOMORA — ҳамёни ғайрикастодиалӣ. Калидҳо танҳо дар дастгоҳи шумо нигоҳ дошта мешаванд.</p>
@@ -624,6 +813,8 @@ function ScreenSettings(): HTMLElement {
   (s.querySelector("#net") as HTMLSelectElement).addEventListener("change", (e: any) => {
     settings = { net: e.target.value as Net }; setSettings(settings); toast("Шабака иваз шуд"); go({ name: "home" });
   });
+  const tbtn = s.querySelector("#treasury");
+  if (tbtn) tbtn.addEventListener("click", () => go({ name: "treasury" }));
   s.querySelector("#lock")!.addEventListener("click", () => { session = null; go({ name: "lock" }); });
   s.querySelector("#wipe")!.addEventListener("click", () => {
     if (confirm("Ҳамёнро аз ин дастгоҳ нест кунам?")) { wipe(); session = null; go({ name: "welcome" }); }
