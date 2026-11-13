@@ -67,6 +67,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.os.LocaleListCompat
 import tj.payvand.app.R
 import tj.payvand.app.ui.components.ErrorText
+import tj.payvand.app.ui.components.LivingBackground
 import tj.payvand.app.ui.components.PayvandMark
 import tj.payvand.app.ui.components.PrimaryButton
 import tj.payvand.app.ui.components.PvField
@@ -92,19 +93,9 @@ fun currentLanguageTag(): String {
 
 fun applyLanguage(tag: String) = AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags(tag))
 
-/** Фирменный фон: ночной градиент с изумрудным свечением. */
+/** Фирменный живой фон для экранов входа. */
 @Composable
-fun BrandBackground(content: @Composable () -> Unit) {
-    val dark = pv.isDark
-    Box(
-        Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).background(
-            Brush.radialGradient(
-                listOf(Brand.Emerald.copy(alpha = if (dark) 0.16f else 0.14f), Color.Transparent),
-                center = androidx.compose.ui.geometry.Offset(200f, 250f), radius = 1100f,
-            )
-        )
-    ) { content() }
-}
+fun BrandBackground(content: @Composable () -> Unit) = LivingBackground(intensity = 1f, content = content)
 
 /** Первый запуск: выбор языка. Названия языков всегда показаны на самих этих языках. */
 @Composable
@@ -112,10 +103,8 @@ fun LanguageScreen(selected: String, onSelect: (String) -> Unit, onContinue: () 
     BrandBackground {
         Column(Modifier.fillMaxSize().systemBarsPadding().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Spacer(Modifier.height(36.dp))
-            PayvandMark(size = 84.dp, onDark = pv.isDark)
-            Spacer(Modifier.height(14.dp))
-            Wordmark(fontSize = 28)
-            Spacer(Modifier.height(36.dp))
+            PayvandMark(size = 120.dp, shimmer = true)
+            Spacer(Modifier.height(28.dp))
             Text("Забонро интихоб кунед", style = MaterialTheme.typography.titleMedium)
             Text("Выберите язык · Choose your language", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(20.dp))
@@ -187,7 +176,7 @@ fun WelcomeScreen(onSignIn: () -> Unit, onSignUp: () -> Unit, onChangeServer: ((
         Spacer(Modifier.height(8.dp))
         Text(stringResource(R.string.tagline), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
         Spacer(Modifier.height(36.dp))
-        PayvandMark(size = 132.dp, onDark = pv.isDark)
+        PayvandMark(size = 168.dp, shimmer = true)
         Spacer(Modifier.height(18.dp))
         Slogan()
         Spacer(Modifier.weight(1f))
@@ -208,7 +197,7 @@ private fun FormScreen(step: AuthStep, ui: AuthUi, vm: AuthViewModel) {
     Column(Modifier.fillMaxSize().systemBarsPadding().imePadding().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp)) {
         IconButton(onClick = { vm.back() }, Modifier.padding(top = 4.dp)) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back)) }
         Spacer(Modifier.height(8.dp))
-        PayvandMark(size = 56.dp, onDark = pv.isDark)
+        PayvandMark(size = 56.dp)
         Spacer(Modifier.height(16.dp))
         val (title, sub) = when (step) {
             AuthStep.SIGN_IN -> stringResource(R.string.sign_in) to stringResource(R.string.tagline)
@@ -307,7 +296,7 @@ fun ServerSetupScreen(initialUrl: String, error: Boolean, onConnect: (String, St
         Column(Modifier.fillMaxSize().systemBarsPadding().imePadding().verticalScroll(rememberScrollState()).padding(24.dp)) {
             if (onBack != null) IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back)) }
             Spacer(Modifier.height(12.dp))
-            PayvandMark(size = 56.dp, onDark = pv.isDark)
+            PayvandMark(size = 56.dp)
             Spacer(Modifier.height(16.dp))
             Text(stringResource(R.string.server_title), style = MaterialTheme.typography.headlineMedium)
             Spacer(Modifier.height(6.dp))

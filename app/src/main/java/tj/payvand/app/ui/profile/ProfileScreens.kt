@@ -31,6 +31,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.ContentCopy
@@ -238,6 +239,8 @@ fun ProfileTab(session: ChatSession, nav: HomeNav) {
         SettingRow(Icons.Filled.Phone, stringResource(R.string.phone), (phone ?: "—") + "\n" + stringResource(R.string.phone_unverified)) { dialog = "phone" }
         SettingRow(Icons.Filled.Language, stringResource(R.string.language), Languages.first { it.tag == currentLanguageTag() }.native) { dialog = "lang" }
         SettingRow(Icons.Filled.DarkMode, stringResource(R.string.theme), stringResource(when (theme) { ThemeMode.SYSTEM -> R.string.theme_system; ThemeMode.DARK -> R.string.theme_dark; ThemeMode.LIGHT -> R.string.theme_light })) { dialog = "theme" }
+        val animatedBg by container.prefs.animatedBackground.collectAsState()
+        SettingRow(Icons.Filled.AutoAwesome, stringResource(R.string.animated_background), stringResource(if (animatedBg) R.string.on else R.string.off)) { container.prefs.setAnimatedBackground(!animatedBg) }
         SettingRow(Icons.Filled.Block, stringResource(R.string.blocked_users)) { nav.blocked() }
         if (nav.changeServer != null) SettingRow(Icons.Filled.Dns, stringResource(R.string.server), container.serverConfig()?.url) { dialog = "server" }
         HorizontalDivider(Modifier.padding(vertical = 8.dp, horizontal = 20.dp), color = MaterialTheme.colorScheme.outlineVariant)
@@ -248,7 +251,7 @@ fun ProfileTab(session: ChatSession, nav: HomeNav) {
             Spacer(Modifier.width(10.dp))
             Text(stringResource(R.string.security_note), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        Text("PAYVAND · " + stringResource(R.string.version, BuildConfig.VERSION_NAME), Modifier.fillMaxWidth().padding(bottom = 24.dp), textAlign = TextAlign.Center, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text("Payvan · " + stringResource(R.string.version, BuildConfig.VERSION_NAME), Modifier.fillMaxWidth().padding(bottom = 24.dp), textAlign = TextAlign.Center, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 
     when (dialog) {

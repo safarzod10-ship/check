@@ -5,7 +5,7 @@
     <string name="loading">Боргирӣ…</string>
     <string name="choose_language">Забонро интихоб кунед</string>
     <string name="continue_">Идома</string>
-    <string name="welcome_title">Хуш омадед\nба PAYVAND!</string>
+    <string name="welcome_title">Хуш омадед\nба Payvan!</string>
     <string name="sign_in">Даромадан</string>
     <string name="create_account">Эҷоди ҳисоб</string>
     <string name="terms_note">Бо идома додан, шумо бо Шартҳои истифода ва Сиёсати махфият розӣ мешавед</string>
@@ -32,7 +32,7 @@
     <string name="bio">Дар бораи худ</string>
     <string name="add_photo">Иловаи акс</string>
     <string name="change_photo">Иваз кардани акс</string>
-    <string name="your_payvand_id">PAYVAND ID-и шумо</string>
+    <string name="your_payvand_id">Payvan ID-и шумо</string>
     <string name="save">Сабт</string>
     <string name="done">Тайёр</string>
     <string name="tab_chats">Чатҳо</string>
@@ -41,9 +41,9 @@
     <string name="tab_contacts">Тамосҳо</string>
     <string name="tab_profile">Профил</string>
     <string name="search">Ҷустуҷӯ…</string>
-    <string name="search_people_hint">Номи корбар ё PAYVAND ID</string>
+    <string name="search_people_hint">Номи корбар ё Payvan ID</string>
     <string name="no_chats_title">Ҳоло чат нест</string>
-    <string name="no_chats_sub">Дӯстро бо номи корбар ё PAYVAND ID ёбед ва салом гӯед</string>
+    <string name="no_chats_sub">Дӯстро бо номи корбар ё Payvan ID ёбед ва салом гӯед</string>
     <string name="new_chat">Чати нав</string>
     <string name="new_group">Гурӯҳи нав</string>
     <string name="new_channel">Канали нав</string>
@@ -92,7 +92,7 @@
     <string name="no_connection">Пайвастшавӣ нест. Аз нав пайваст мешавем…</string>
     <string name="forward_to">Равон кардан ба…</string>
     <string name="calls_title">Зангҳо дар ҳоли таҳия</string>
-    <string name="calls_body">Зангҳои овозӣ ва видеоӣ ҳоло дастрас нестанд. Меъморӣ тайёр аст (WebRTC, сигнализатсия тавассути канали realtime-и PAYVAND), аммо барои зангҳои воқеӣ сервери TURN лозим аст. То вақте ки занг воқеан кор накунад, мо тугмаи онро нишон намедиҳем.</string>
+    <string name="calls_body">Зангҳои овозӣ ва видеоӣ ҳоло дастрас нестанд. Меъморӣ тайёр аст (WebRTC, сигнализатсия тавассути канали realtime-и Payvan), аммо барои зангҳои воқеӣ сервери TURN лозим аст. То вақте ки занг воқеан кор накунад, мо тугмаи онро нишон намедиҳем.</string>
     <string name="my_communities">Ҷамоаҳои ман</string>
     <string name="public_communities">Ҷамоаҳои оммавӣ</string>
     <string name="no_communities">Шумо ҳоло гурӯҳ ё канал надоред</string>
@@ -123,7 +123,7 @@
     <string name="report_reason">Мушкилотро шарҳ диҳед</string>
     <string name="report_sent">Шикоят фиристода шуд. Ташаккур!</string>
     <string name="contacts_empty">Одамоне, ки бо онҳо мукотиба мекунед, дар ин ҷо пайдо мешаванд</string>
-    <string name="invite_text">Маро дар PAYVAND ёб: %s</string>
+    <string name="invite_text">Маро дар Payvan ёб: %s</string>
     <string name="share_id">Мубодилаи ID-и ман</string>
     <string name="edit_profile">Таҳрири профил</string>
     <string name="phone">Рақами телефон</string>
@@ -179,4 +179,7 @@
     <string name="close">Пӯшидан</string>
     <string name="public_">оммавӣ</string>
     <string name="private_">пӯшида</string>
+    <string name="animated_background">Заминаи аниматсионӣ</string>
+    <string name="on">Фаъол</string>
+    <string name="off">Хомӯш (батареяро сарфа мекунад)</string>
 </resources>

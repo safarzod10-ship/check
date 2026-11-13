@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Сгенерировано tools/gen_strings.py — правьте таблицу там -->
 <resources>
-    <string name="app_name" translatable="false">PAYVAND</string>
+    <string name="app_name" translatable="false">Payvan</string>
     <string name="slogan" translatable="false">One World. One Connection.</string>
     <string name="tagline">Connecting people around the world</string>
     <string name="loading">Loading…</string>
     <string name="choose_language">Choose your language</string>
     <string name="continue_">Continue</string>
-    <string name="welcome_title">Welcome to PAYVAND!</string>
+    <string name="welcome_title">Welcome to Payvan!</string>
     <string name="sign_in">Sign in</string>
     <string name="create_account">Create account</string>
     <string name="terms_note">By continuing, you agree to the Terms of Use and the Privacy Policy</string>
@@ -34,7 +34,7 @@
     <string name="bio">About</string>
     <string name="add_photo">Add photo</string>
     <string name="change_photo">Change photo</string>
-    <string name="your_payvand_id">Your PAYVAND ID</string>
+    <string name="your_payvand_id">Your Payvan ID</string>
     <string name="save">Save</string>
     <string name="done">Done</string>
     <string name="tab_chats">Chats</string>
@@ -43,9 +43,9 @@
     <string name="tab_contacts">Contacts</string>
     <string name="tab_profile">Profile</string>
     <string name="search">Search…</string>
-    <string name="search_people_hint">Username or PAYVAND ID</string>
+    <string name="search_people_hint">Username or Payvan ID</string>
     <string name="no_chats_title">No chats yet</string>
-    <string name="no_chats_sub">Find a friend by username or PAYVAND ID and say hello</string>
+    <string name="no_chats_sub">Find a friend by username or Payvan ID and say hello</string>
     <string name="new_chat">New chat</string>
     <string name="new_group">New group</string>
     <string name="new_channel">New channel</string>
@@ -94,7 +94,7 @@
     <string name="no_connection">No connection. Reconnecting…</string>
     <string name="forward_to">Forward to…</string>
     <string name="calls_title">Calls are in development</string>
-    <string name="calls_body">Voice and video calls are not available yet. The architecture is ready (WebRTC, signalling over the PAYVAND realtime channel), but real calls need a TURN relay server. We don\'t show a call button until it truly works.</string>
+    <string name="calls_body">Voice and video calls are not available yet. The architecture is ready (WebRTC, signalling over the Payvan realtime channel), but real calls need a TURN relay server. We don\'t show a call button until it truly works.</string>
     <string name="my_communities">My communities</string>
     <string name="public_communities">Public communities</string>
     <string name="no_communities">You have no groups or channels yet</string>
@@ -125,7 +125,7 @@
     <string name="report_reason">Describe the problem</string>
     <string name="report_sent">Report sent. Thank you!</string>
     <string name="contacts_empty">People you chat with appear here</string>
-    <string name="invite_text">Find me on PAYVAND: %s</string>
+    <string name="invite_text">Find me on Payvan: %s</string>
     <string name="share_id">Share my ID</string>
     <string name="edit_profile">Edit profile</string>
     <string name="phone">Phone number</string>
@@ -181,4 +181,7 @@
     <string name="close">Close</string>
     <string name="public_">public</string>
     <string name="private_">private</string>
+    <string name="animated_background">Animated background</string>
+    <string name="on">On</string>
+    <string name="off">Off (saves battery)</string>
 </resources>

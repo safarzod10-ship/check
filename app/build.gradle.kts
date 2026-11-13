@@ -25,8 +25,8 @@ android {
         applicationId = "tj.payvand.app"
         minSdk = 28            // Android 9
         targetSdk = 35
-        versionCode = (System.getenv("PAYVAND_VERSION_CODE") ?: "1").toInt()
-        versionName = "0.1.0"
+        versionCode = (System.getenv("PAYVAND_VERSION_CODE") ?: "2").toInt()
+        versionName = "0.2.0"
 
         // Публичные параметры сервера. anon-ключ Supabase рассчитан на публикацию в клиенте;
         // service_role-ключ сюда попадать НЕ должен — сборка упадёт, если его подставить.

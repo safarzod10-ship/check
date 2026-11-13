@@ -5,7 +5,7 @@
     <string name="loading">Загрузка…</string>
     <string name="choose_language">Выберите язык</string>
     <string name="continue_">Продолжить</string>
-    <string name="welcome_title">Добро пожаловать\nв PAYVAND!</string>
+    <string name="welcome_title">Добро пожаловать\nв Payvan!</string>
     <string name="sign_in">Войти</string>
     <string name="create_account">Создать аккаунт</string>
     <string name="terms_note">Продолжая, вы соглашаетесь с Пользовательским соглашением и Политикой конфиденциальности</string>
@@ -32,7 +32,7 @@
     <string name="bio">О себе</string>
     <string name="add_photo">Добавить фото</string>
     <string name="change_photo">Изменить фото</string>
-    <string name="your_payvand_id">Ваш PAYVAND ID</string>
+    <string name="your_payvand_id">Ваш Payvan ID</string>
     <string name="save">Сохранить</string>
     <string name="done">Готово</string>
     <string name="tab_chats">Чаты</string>
@@ -41,9 +41,9 @@
     <string name="tab_contacts">Контакты</string>
     <string name="tab_profile">Профиль</string>
     <string name="search">Поиск…</string>
-    <string name="search_people_hint">Имя пользователя или PAYVAND ID</string>
+    <string name="search_people_hint">Имя пользователя или Payvan ID</string>
     <string name="no_chats_title">Пока нет чатов</string>
-    <string name="no_chats_sub">Найдите друга по имени пользователя или PAYVAND ID и напишите ему</string>
+    <string name="no_chats_sub">Найдите друга по имени пользователя или Payvan ID и напишите ему</string>
     <string name="new_chat">Новый чат</string>
     <string name="new_group">Новая группа</string>
     <string name="new_channel">Новый канал</string>
@@ -92,7 +92,7 @@
     <string name="no_connection">Нет соединения. Переподключение…</string>
     <string name="forward_to">Переслать в…</string>
     <string name="calls_title">Звонки в разработке</string>
-    <string name="calls_body">Голосовые и видеозвонки пока недоступны. Архитектура готова (WebRTC, сигнализация через realtime-канал PAYVAND), но для настоящих звонков нужен TURN-сервер. Мы не показываем кнопку звонка, пока она не работает по-настоящему.</string>
+    <string name="calls_body">Голосовые и видеозвонки пока недоступны. Архитектура готова (WebRTC, сигнализация через realtime-канал Payvan), но для настоящих звонков нужен TURN-сервер. Мы не показываем кнопку звонка, пока она не работает по-настоящему.</string>
     <string name="my_communities">Мои сообщества</string>
     <string name="public_communities">Публичные сообщества</string>
     <string name="no_communities">У вас пока нет групп и каналов</string>
@@ -123,7 +123,7 @@
     <string name="report_reason">Опишите проблему</string>
     <string name="report_sent">Жалоба отправлена. Спасибо!</string>
     <string name="contacts_empty">Здесь появятся люди, с которыми вы переписываетесь</string>
-    <string name="invite_text">Найди меня в PAYVAND: %s</string>
+    <string name="invite_text">Найди меня в Payvan: %s</string>
     <string name="share_id">Поделиться моим ID</string>
     <string name="edit_profile">Редактировать профиль</string>
     <string name="phone">Номер телефона</string>
@@ -179,4 +179,7 @@
     <string name="close">Закрыть</string>
     <string name="public_">публичное</string>
     <string name="private_">закрытое</string>
+    <string name="animated_background">Анимированный фон</string>
+    <string name="on">Включён</string>
+    <string name="off">Выключен (экономит батарею)</string>
 </resources>

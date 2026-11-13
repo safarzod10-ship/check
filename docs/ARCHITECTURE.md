@@ -1,4 +1,4 @@
-# Архитектура PAYVAND
+# Архитектура Payvan
 
 ## Слои
 
@@ -19,7 +19,7 @@ UI (Compose-экраны)  →  ViewModel-и (AuthViewModel, ChatViewModel) и C
 
 | Таблица | Содержимое |
 |---|---|
-| `profiles` | публичный профиль: PAYVAND ID (`PV` + 8 цифр, выдаётся триггером, неизменяем), имя пользователя, имя, аватар, last_seen |
+| `profiles` | публичный профиль: Payvan ID (`PV` + 8 цифр, выдаётся триггером, неизменяем), имя пользователя, имя, аватар, last_seen |
 | `profile_private` | телефон (виден только владельцу) |
 | `conversations` | личные чаты, группы, каналы; признак публичности |
 | `members` | участники, роли owner / admin / member, отметки `last_read_at` и `last_delivered_at` |

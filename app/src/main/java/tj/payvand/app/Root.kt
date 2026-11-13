@@ -25,6 +25,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -53,6 +54,7 @@ import tj.payvand.app.ui.chat.ChatViewModel
 import tj.payvand.app.ui.community.ConversationInfoScreen
 import tj.payvand.app.ui.community.CreateConversationScreen
 import tj.payvand.app.ui.components.AnimatedBrand
+import tj.payvand.app.ui.components.LocalAnimatedBackground
 import tj.payvand.app.ui.home.HomeNav
 import tj.payvand.app.ui.home.HomeScreen
 import tj.payvand.app.ui.profile.BlockedScreen
@@ -66,7 +68,8 @@ import tj.payvand.core.ConversationType
 @Composable
 fun PayvandRoot(container: AppContainer) {
     val theme by container.prefs.theme.collectAsState()
-    PayvandTheme(theme) {
+    val animatedBg by container.prefs.animatedBackground.collectAsState()
+    PayvandTheme(theme) { CompositionLocalProvider(LocalAnimatedBackground provides animatedBg) {
         val dark = pv.isDark
         val view = LocalView.current
         LaunchedEffect(dark) {
@@ -96,7 +99,7 @@ fun PayvandRoot(container: AppContainer) {
                 }
             }
         }
-    }
+    } }
 }
 
 /** Не даём по ошибке вставить секретный ключ администратора. */
@@ -108,7 +111,7 @@ private fun isServiceRole(key: String): Boolean = runCatching {
 fun Splash(animate: Boolean) {
     BrandBackground {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            AnimatedBrand(animate = animate, onDark = pv.isDark)
+            AnimatedBrand(animate = animate)
             Column(Modifier.align(Alignment.BottomCenter).padding(bottom = 72.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 CircularProgressIndicator(Modifier.size(26.dp), strokeWidth = 2.5.dp)
                 Spacer(Modifier.height(12.dp))

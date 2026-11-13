@@ -5,6 +5,12 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
+import tj.payvand.app.ui.components.LivingBackground
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.border
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -114,37 +120,46 @@ fun HomeScreen(session: ChatSession, nav: HomeNav) {
         Tab(Icons.AutoMirrored.Filled.Chat, R.string.tab_chats), Tab(Icons.Filled.Call, R.string.tab_calls),
         Tab(Icons.Filled.Groups, R.string.tab_communities), Tab(Icons.Filled.Contacts, R.string.tab_contacts), Tab(Icons.Filled.Person, R.string.tab_profile),
     )
-    Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
-        bottomBar = {
-            NavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainerLow, tonalElevation = 0.dp) {
-                tabs.forEachIndexed { i, t ->
-                    NavigationBarItem(
-                        selected = tab == i, onClick = { tab = i },
-                        icon = {
-                            Box {
-                                Icon(t.icon, null)
-                                if (i == 0 && unread > 0) Box(Modifier.align(Alignment.TopEnd).size(9.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary))
-                            }
-                        },
-                        label = { Text(stringResource(t.label), fontSize = 10.5.sp, maxLines = 1, overflow = TextOverflow.Clip, softWrap = false) },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = MaterialTheme.colorScheme.primary, selectedTextColor = MaterialTheme.colorScheme.primary,
-                            indicatorColor = MaterialTheme.colorScheme.primaryContainer,
-                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant, unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                        ),
-                    )
+    // Собственная навигация Payvan: «парящая» стеклянная панель; активная вкладка — золотая капсула с подписью.
+    LivingBackground(intensity = 0.55f) {
+        Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
+            Box(Modifier.weight(1f).fillMaxWidth()) {
+                Crossfade(tab, label = "tab") { t ->
+                    when (t) {
+                        0 -> ChatsTab(session, conversations, nav)
+                        1 -> CallsTab()
+                        2 -> CommunitiesTab(session, conversations, nav)
+                        3 -> ContactsTab(session, conversations, nav)
+                        else -> ProfileTab(session, nav)
+                    }
                 }
             }
-        },
-    ) { pad ->
-        Box(Modifier.fillMaxSize().padding(bottom = pad.calculateBottomPadding()).statusBarsPadding()) {
-            when (tab) {
-                0 -> ChatsTab(session, conversations, nav)
-                1 -> CallsTab()
-                2 -> CommunitiesTab(session, conversations, nav)
-                3 -> ContactsTab(session, conversations, nav)
-                else -> ProfileTab(session, nav)
+            val shape = RoundedCornerShape(30.dp)
+            Row(
+                Modifier.padding(horizontal = 14.dp, vertical = 10.dp).fillMaxWidth().height(62.dp).clip(shape).background(pv.glass)
+                    .border(1.dp, Brush.horizontalGradient(listOf(Brand.Gold.copy(alpha = 0.55f), Brand.Gold.copy(alpha = 0.08f), Brand.Gold.copy(alpha = 0.45f))), shape)
+                    .padding(horizontal = 6.dp),
+                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                tabs.forEachIndexed { i, t ->
+                    val selected = tab == i
+                    val label = stringResource(t.label)
+                    Row(
+                        Modifier.height(48.dp).clip(RoundedCornerShape(24.dp))
+                            .then(if (selected) Modifier.background(Brand.Gradient) else Modifier)
+                            .clickable(onClickLabel = label) { tab = i }.animateContentSize().padding(horizontal = if (selected) 14.dp else 13.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Box {
+                            Icon(t.icon, if (selected) null else label, tint = if (selected) Brand.OnGold else MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(24.dp))
+                            if (i == 0 && unread > 0 && !selected) Box(Modifier.align(Alignment.TopEnd).size(9.dp).clip(CircleShape).background(Brand.FlagRed))
+                        }
+                        if (selected) {
+                            Spacer(Modifier.width(7.dp))
+                            Text(label, color = Brand.OnGold, fontWeight = FontWeight.Bold, fontSize = 13.sp, maxLines = 1, softWrap = false)
+                        }
+                    }
+                }
             }
         }
     }
@@ -233,7 +248,7 @@ private fun ChatsTab(session: ChatSession, conversations: List<ConversationSumma
         }
         var fabMenu by remember { mutableStateOf(false) }
         Box(Modifier.align(Alignment.BottomEnd).padding(18.dp)) {
-            FloatingActionButton(onClick = { fabMenu = true }, containerColor = Brand.Emerald, contentColor = Color(0xFF00210F), shape = CircleShape) {
+            FloatingActionButton(onClick = { fabMenu = true }, containerColor = Brand.Gold, contentColor = Brand.OnGold, shape = RoundedCornerShape(20.dp)) {
                 Icon(Icons.Filled.Edit, stringResource(R.string.new_chat))
             }
             NewMenu(fabMenu, { fabMenu = false }, nav)
@@ -252,7 +267,10 @@ private fun NewMenu(open: Boolean, close: () -> Unit, nav: HomeNav) {
 @Composable
 fun ConversationRow(session: ChatSession, c: ConversationSummary, myId: String?, onClick: () -> Unit) {
     val ctx = LocalContext.current
-    Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 9.dp), verticalAlignment = Alignment.CenterVertically) {
+    val card = RoundedCornerShape(22.dp)
+    Row(Modifier.padding(horizontal = 12.dp, vertical = 4.dp).fillMaxWidth().clip(card).background(pv.glass.copy(alpha = if (c.unreadCount > 0) 0.85f else 0.55f))
+        .then(if (c.unreadCount > 0) Modifier.border(1.dp, Brand.Gold.copy(alpha = 0.45f), card) else Modifier)
+        .clickable(onClick = onClick).padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
         Avatar(session.api.avatarUrl(c.displayAvatar), c.displayTitle, 54.dp, online = c.isDirect && Time.isOnline(c.peerLastSeen))
         Spacer(Modifier.width(14.dp))
         Column(Modifier.weight(1f)) {

@@ -211,7 +211,7 @@ private fun UserInfo(session: ChatSession, c: ConversationSummary, onBack: () ->
             Text(Fmt.lastSeen(ctx, profile?.lastSeen ?: c.peerLastSeen), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             profile?.let { p ->
                 Spacer(Modifier.height(10.dp))
-                TextButton(onClick = { ctx.copyText(p.payvandId) }) { Text("PAYVAND ID · " + p.payvandId) }
+                TextButton(onClick = { ctx.copyText(p.payvandId) }) { Text("Payvan ID · " + p.payvandId) }
                 if (p.bio.isNotBlank()) Text(p.bio, textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Spacer(Modifier.height(24.dp))

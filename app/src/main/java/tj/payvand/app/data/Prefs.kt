@@ -22,6 +22,7 @@ class Prefs(context: Context) {
 
     val languageChosen = MutableStateFlow(sp.getBoolean("lang_chosen", false))
     val theme = MutableStateFlow(runCatching { ThemeMode.valueOf(sp.getString("theme", null) ?: "DARK") }.getOrDefault(ThemeMode.DARK))
+    val animatedBackground = MutableStateFlow(sp.getBoolean("animated_bg", true))
     val server = MutableStateFlow(loadServer())
 
     private fun loadServer(): BackendConfig? {
@@ -30,6 +31,7 @@ class Prefs(context: Context) {
     }
 
     fun setLanguageChosen() { sp.edit().putBoolean("lang_chosen", true).apply(); languageChosen.value = true }
+    fun setAnimatedBackground(on: Boolean) { sp.edit().putBoolean("animated_bg", on).apply(); animatedBackground.value = on }
     fun setTheme(m: ThemeMode) { sp.edit().putString("theme", m.name).apply(); theme.value = m }
     fun setServer(c: BackendConfig?) {
         sp.edit().apply { if (c == null) { remove("server_url"); remove("server_key") } else { putString("server_url", c.url); putString("server_key", c.anonKey) } }.apply()

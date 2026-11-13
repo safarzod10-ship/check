@@ -109,7 +109,7 @@ fun PrimaryButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifi
             .clickable(enabled = active, onClick = onClick).padding(horizontal = 20.dp),
         contentAlignment = Alignment.Center,
     ) {
-        val fg = if (enabled) Color(0xFF00210F) else MaterialTheme.colorScheme.onSurfaceVariant
+        val fg = if (enabled) Brand.OnGold else MaterialTheme.colorScheme.onSurfaceVariant
         if (loading) CircularProgressIndicator(Modifier.size(22.dp), color = fg, strokeWidth = 2.5.dp)
         else Row(verticalAlignment = Alignment.CenterVertically) {
             Text(text, color = fg, style = MaterialTheme.typography.labelLarge, fontSize = 16.sp)

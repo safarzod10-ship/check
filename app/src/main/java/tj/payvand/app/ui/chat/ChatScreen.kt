@@ -9,6 +9,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import tj.payvand.app.ui.components.LivingBackground
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -167,7 +169,8 @@ fun ChatScreen(session: ChatSession, container: AppContainer, vm: ChatViewModel,
     val nearTop by remember { derivedStateOf { (listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0) >= listState.layoutInfo.totalItemsCount - 6 } }
     LaunchedEffect(nearTop, ui.messages.size) { if (nearTop && ui.hasMore) vm.loadMore() }
 
-    Column(Modifier.fillMaxSize().background(pv.chatBackground).imePadding()) {
+    LivingBackground(intensity = 0.4f, mountains = false) {
+    Column(Modifier.fillMaxSize().imePadding()) {
         ChatTopBar(session, conv, onBack, onInfo)
         ConnectionBanner(session)
         Box(Modifier.weight(1f).fillMaxWidth()) {
@@ -202,6 +205,8 @@ fun ChatScreen(session: ChatSession, container: AppContainer, vm: ChatViewModel,
                 textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium,
             )
         }
+    }
+
     }
 
     actionsFor?.let { m ->
@@ -242,7 +247,7 @@ fun ChatScreen(session: ChatSession, container: AppContainer, vm: ChatViewModel,
 @Composable
 private fun ChatTopBar(session: ChatSession, conv: ConversationSummary?, onBack: () -> Unit, onInfo: () -> Unit) {
     val ctx = LocalContext.current
-    Surface(color = MaterialTheme.colorScheme.surfaceContainerLow) {
+    Surface(color = pv.glass) {
         Row(Modifier.fillMaxWidth().statusBarsPadding().height(60.dp), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back)) }
             Row(Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).clickable(enabled = conv != null, onClick = onInfo).padding(vertical = 6.dp, horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -297,31 +302,33 @@ private fun MessageBubble(
     onLongPress: () -> Unit, onRetry: () -> Unit, onOpenImage: (File) -> Unit,
 ) {
     val ctx = LocalContext.current
-    val bg = if (mine) pv.bubbleOut else pv.bubbleIn
     val fg = if (mine) pv.onBubbleOut else pv.onBubbleIn
     val meta = if (mine) fg.copy(alpha = 0.65f) else pv.bubbleMeta
-    val shape = RoundedCornerShape(18.dp, 18.dp, if (mine) 5.dp else 18.dp, if (mine) 18.dp else 5.dp)
+    val accent = if (mine) Color(0xFF5A3D00) else MaterialTheme.colorScheme.primary
+    // фирменная форма: «лепесток» с одним острым углом сверху со стороны автора
+    val shape = if (mine) RoundedCornerShape(22.dp, 6.dp, 22.dp, 22.dp) else RoundedCornerShape(6.dp, 22.dp, 22.dp, 22.dp)
     BoxWithConstraints(Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
         val maxBubble = maxWidth * 0.8f
         Column(Modifier.align(if (mine) Alignment.CenterEnd else Alignment.CenterStart), horizontalAlignment = if (mine) Alignment.End else Alignment.Start) {
             Column(
-                Modifier.widthIn(min = 72.dp, max = maxBubble).clip(shape).background(bg)
+                Modifier.widthIn(min = 72.dp, max = maxBubble).clip(shape)
+                    .then(if (mine) Modifier.background(pv.bubbleOut) else Modifier.background(pv.bubbleIn).border(1.dp, pv.bubbleInBorder, shape))
                     .combinedClickable(onClick = { if (status == DeliveryStatus.FAILED) onRetry() }, onLongClick = { if (!m.isDeleted) onLongPress() })
                     .padding(start = 10.dp, end = 10.dp, top = 7.dp, bottom = 6.dp),
             ) {
-                if (showSender) Text(sender?.displayName.orEmpty(), color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge, fontSize = 13.sp, maxLines = 1)
+                if (showSender) Text(sender?.displayName.orEmpty(), color = accent, style = MaterialTheme.typography.labelLarge, fontSize = 13.sp, maxLines = 1)
                 if (m.isDeleted) {
                     Text(stringResource(R.string.msg_deleted), color = meta, fontStyle = FontStyle.Italic)
                 } else {
                     if (m.forwardedFrom != null) Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.AutoMirrored.Filled.Forward, null, Modifier.size(14.dp), tint = MaterialTheme.colorScheme.primary); Spacer(Modifier.width(4.dp))
+                        Icon(Icons.AutoMirrored.Filled.Forward, null, Modifier.size(14.dp), tint = accent); Spacer(Modifier.width(4.dp))
                         Text(forwardedFrom?.displayName?.takeIf { it.isNotBlank() }?.let { stringResource(R.string.forwarded_from, it) } ?: stringResource(R.string.forwarded),
-                            style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            style = MaterialTheme.typography.labelMedium, color = accent, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                     if (m.replyToId != null) Row(Modifier.padding(bottom = 4.dp, top = 2.dp).clip(RoundedCornerShape(8.dp)).background(fg.copy(alpha = 0.08f)).height(androidx.compose.foundation.layout.IntrinsicSize.Min)) {
-                        Box(Modifier.width(3.dp).fillMaxSize().background(MaterialTheme.colorScheme.primary))
+                        Box(Modifier.width(3.dp).fillMaxSize().background(accent))
                         Column(Modifier.padding(horizontal = 8.dp, vertical = 4.dp)) {
-                            Text(repliedSender?.displayName.orEmpty().ifBlank { "…" }, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, maxLines = 1)
+                            Text(repliedSender?.displayName.orEmpty().ifBlank { "…" }, style = MaterialTheme.typography.labelMedium, color = accent, maxLines = 1)
                             Text(replied?.let { MessageText.preview(ctx, it.kind, it.body, it.isDeleted) } ?: "…", style = MaterialTheme.typography.bodySmall, color = fg.copy(alpha = 0.8f), maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
                     }
@@ -342,7 +349,7 @@ private fun MessageBubble(
                             DeliveryStatus.FAILED -> Icons.Filled.ErrorOutline to MaterialTheme.colorScheme.error
                             DeliveryStatus.SENT -> Icons.Filled.Done to meta
                             DeliveryStatus.DELIVERED -> Icons.Filled.DoneAll to meta
-                            DeliveryStatus.READ -> Icons.Filled.DoneAll to pv.read
+                            DeliveryStatus.READ -> Icons.Filled.DoneAll to pv.readOnBubble
                         }
                         Icon(icon, status.name, Modifier.size(15.dp), tint = tint)
                     }
@@ -441,7 +448,7 @@ private fun Composer(vm: ChatViewModel, ui: ChatUi, profiles: Map<String, Profil
     fun startRecording() { if (recorder.start()) recording = true else Toast.makeText(ctx, R.string.mic_permission, Toast.LENGTH_SHORT).show() }
     val micPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { ok -> if (ok) startRecording() else Toast.makeText(ctx, R.string.mic_permission, Toast.LENGTH_LONG).show() }
 
-    Surface(color = MaterialTheme.colorScheme.surfaceContainerLow) {
+    Surface(color = pv.glass) {
         Column(Modifier.navigationBarsPadding()) {
             val ctxMsg = ui.editing ?: ui.replyTo
             AnimatedVisibility(ctxMsg != null) {
@@ -494,7 +501,7 @@ private fun Composer(vm: ChatViewModel, ui: ChatUi, profiles: Map<String, Profil
 @Composable
 private fun RoundAction(icon: ImageVector, description: String, onClick: () -> Unit) {
     Box(Modifier.padding(bottom = 2.dp).size(46.dp).clip(CircleShape).background(Brand.Gradient).clickable(onClick = onClick), contentAlignment = Alignment.Center) {
-        Icon(icon, description, tint = Color(0xFF00210F))
+        Icon(icon, description, tint = Brand.OnGold)
     }
 }
 
